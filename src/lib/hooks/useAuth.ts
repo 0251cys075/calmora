@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { signInWithPopup } from "firebase/auth"
+import { getFirebaseAuth } from "@/lib/firebase"
 import type { UserData } from "@/lib/api"
 
 interface AuthState {
@@ -39,7 +41,7 @@ function generateId(): string {
   return "user_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
 }
 
-function createUserData(name: string, email: string): UserData {
+function createUserData(name: string, email: string, avatar?: string): UserData {
   return {
     id: generateId(),
     name,
@@ -49,7 +51,12 @@ function createUserData(name: string, email: string): UserData {
     level: 8,
     streak: 5,
     badges: ["Early Adopter", "Mindful Beginner"],
+    avatar,
   }
+}
+
+function setUser(user: UserData) {
+  localStorage.setItem("calmora_user", JSON.stringify(user))
 }
 
 export function useAuth() {
@@ -67,8 +74,6 @@ export function useAuth() {
 
   const login = useCallback(async (email: string, password: string) => {
     setState((s) => ({ ...s, loading: true, error: null }))
-
-    // Simulate a small network delay for realism
     await new Promise((r) => setTimeout(r, 400))
 
     const accounts = getStoredAccounts()
@@ -78,21 +83,19 @@ export function useAuth() {
       setState((s) => ({ ...s, loading: false, error: "No account found with that email. Please sign up first." }))
       return false
     }
-
     if (account.password !== password) {
       setState((s) => ({ ...s, loading: false, error: "Incorrect password. Please try again." }))
       return false
     }
 
     const user = createUserData(account.name, account.email)
-    localStorage.setItem("calmora_user", JSON.stringify(user))
+    setUser(user)
     setState({ user, loading: false, error: null })
     return true
   }, [])
 
   const register = useCallback(async (name: string, email: string, password: string) => {
     setState((s) => ({ ...s, loading: true, error: null }))
-
     await new Promise((r) => setTimeout(r, 400))
 
     if (!name.trim()) {
@@ -114,12 +117,53 @@ export function useAuth() {
       return false
     }
 
-    // Save account and log in
     saveAccount(name, email, password)
     const user = createUserData(name, email)
-    localStorage.setItem("calmora_user", JSON.stringify(user))
+    setUser(user)
     setState({ user, loading: false, error: null })
     return true
+  }, [])
+
+  const loginWithGoogle = useCallback(async () => {
+    setState((s) => ({ ...s, loading: true, error: null }))
+    try {
+      const firebase = getFirebaseAuth()
+      if (!firebase) {
+        setState((s) => ({
+          ...s,
+          loading: false,
+          error: "Google sign-in is not configured yet. Please use email sign-up or guest access.",
+        }))
+        return false
+      }
+
+      const result = await signInWithPopup(firebase.auth, firebase.googleProvider)
+      const firebaseUser = result.user
+
+      const user = createUserData(
+        firebaseUser.displayName || "Calmora User",
+        firebaseUser.email || "user@calmora.app",
+        firebaseUser.photoURL || undefined
+      )
+
+      setUser(user)
+      setState({ user, loading: false, error: null })
+      return true
+    } catch (err: unknown) {
+      let message = "Google sign-in failed. Please try again."
+      if (err && typeof err === "object" && "code" in err) {
+        const code = (err as { code: string }).code
+        if (code === "auth/popup-closed-by-user") {
+          message = "Sign-in popup was closed. Please try again."
+        } else if (code === "auth/popup-blocked") {
+          message = "Pop-up was blocked by your browser. Please allow pop-ups for this site."
+        } else if (code === "auth/configuration-not-found" || code === "auth/invalid-api-key") {
+          message = "Firebase is not configured yet. Please use email sign-up or guest access."
+        }
+      }
+      setState((s) => ({ ...s, loading: false, error: message }))
+      return false
+    }
   }, [])
 
   const guestLogin = useCallback(async () => {
@@ -127,7 +171,7 @@ export function useAuth() {
     await new Promise((r) => setTimeout(r, 300))
 
     const user = createUserData("Guest Explorer", "guest@calmora.app")
-    localStorage.setItem("calmora_user", JSON.stringify(user))
+    setUser(user)
     setState({ user, loading: false, error: null })
     return true
   }, [])
@@ -145,6 +189,7 @@ export function useAuth() {
     ...state,
     login,
     register,
+    loginWithGoogle,
     guestLogin,
     logout,
     clearError,
