@@ -13,14 +13,14 @@ import {
 } from "lucide-react"
 
 const videoEmbeds: Record<string, string> = {
-  "anx-1": "https://www.youtube.com/embed/5qap5aO4i9A?cc_load_policy=1&hl=en",
-  "str-1": "https://www.youtube.com/embed/inpok4MKVLM?cc_load_policy=1&hl=en",
-  "med-1": "https://www.youtube.com/embed/sss7L_NF0ak?cc_load_policy=1&hl=en",
-  "pro-1": "https://www.youtube.com/embed/Ip2KtKuV9rI?cc_load_policy=1&hl=en",
-  "slp-1": "https://www.youtube.com/embed/t0k2k1mG7kM?cc_load_policy=1&hl=en",
-  "rel-1": "https://www.youtube.com/embed/7Qlq7GxoHoA?cc_load_policy=1&hl=en",
-  "stu-1": "https://www.youtube.com/embed/6dIs1UoTaLs?cc_load_policy=1&hl=en",
-  "min-1": "https://www.youtube.com/embed/sss7L_NF0ak?cc_load_policy=1&hl=en",
+  "anx-1": "https://www.youtube.com/embed/QjLOWQqy2MU?cc_load_policy=1&hl=en",
+  "str-1": "https://www.youtube.com/embed/o18I23HCQtE?cc_load_policy=1&hl=en",
+  "med-1": "https://www.youtube.com/embed/ZToicYcHIOU?cc_load_policy=1&hl=en",
+  "pro-1": "https://www.youtube.com/embed/gyDEUtA3pzc?cc_load_policy=1&hl=en",
+  "slp-1": "https://www.youtube.com/embed/5MuIMqhT8DM?cc_load_policy=1&hl=en",
+  "rel-1": "https://www.youtube.com/embed/i3ku5nx4tMU?cc_load_policy=1&hl=en",
+  "stu-1": "https://www.youtube.com/embed/fHfHSq7PVDU?cc_load_policy=1&hl=en",
+  "min-1": "https://www.youtube.com/embed/6p_yaNFSYao?cc_load_policy=1&hl=en",
 }
 
 const podcastUrls: Record<string, string> = {

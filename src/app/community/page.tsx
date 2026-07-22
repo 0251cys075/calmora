@@ -59,6 +59,28 @@ const prompts = [
 
 export default function CommunityPage() {
   const [liked, setLiked] = useState<number[]>([])
+  const [openComments, setOpenComments] = useState<number[]>([])
+  const [commentInputs, setCommentInputs] = useState<Record<number, string>>({})
+  const [postComments, setPostComments] = useState<Record<number, { author: string; content: string; time: string }[]>>({})
+
+  const toggleComments = (postId: number) => {
+    setOpenComments((prev) => prev.includes(postId) ? prev.filter((id) => id !== postId) : [...prev, postId])
+  }
+
+  const submitComment = (postId: number) => {
+    const text = commentInputs[postId]?.trim()
+    if (!text) return
+    const comment = {
+      author: "You",
+      content: text,
+      time: "Just now",
+    }
+    setPostComments((prev) => ({
+      ...prev,
+      [postId]: [...(prev[postId] || []), comment],
+    }))
+    setCommentInputs((prev) => ({ ...prev, [postId]: "" }))
+  }
 
   return (
     <div className="space-y-6">
@@ -135,15 +157,49 @@ export default function CommunityPage() {
                       <Heart className={`w-4 h-4 ${liked.includes(post.id) ? "fill-current" : ""}`} />
                       {post.likes + (liked.includes(post.id) ? 1 : 0)}
                     </button>
-                    <button className="flex items-center gap-1 text-sm text-white/40 hover:text-white transition-all">
+                    <button onClick={() => toggleComments(post.id)} className="flex items-center gap-1 text-sm text-white/40 hover:text-white transition-all">
                       <MessageCircle className="w-4 h-4" />
-                      {post.comments}
+                      {post.comments + (postComments[post.id]?.length || 0)}
                     </button>
                     <button className="flex items-center gap-1 text-sm text-white/40 hover:text-white transition-all ml-auto">
                       <Share2 className="w-4 h-4" />
                       Share
                     </button>
                   </div>
+                  {openComments.includes(post.id) && (
+                    <div className="mt-3 pt-3 border-t border-white/10 space-y-3">
+                      {(postComments[post.id] || []).map((c, ci) => (
+                        <div key={ci} className="flex gap-2">
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-semibold text-[10px] flex-shrink-0 mt-0.5">
+                            {c.author[0]}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-medium text-white">{c.author}</span>
+                              <span className="text-[10px] text-white/30">{c.time}</span>
+                            </div>
+                            <p className="text-xs text-white/70 mt-0.5">{c.content}</p>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={commentInputs[post.id] || ""}
+                          onChange={(e) => setCommentInputs((prev) => ({ ...prev, [post.id]: e.target.value }))}
+                          onKeyDown={(e) => { if (e.key === "Enter") submitComment(post.id) }}
+                          placeholder="Write a comment..."
+                          className="flex-1 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 text-xs"
+                        />
+                        <button
+                          onClick={() => submitComment(post.id)}
+                          className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-xs font-medium hover:opacity-90 transition-opacity"
+                        >
+                          Post
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </GlassCard>

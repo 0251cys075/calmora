@@ -13,11 +13,11 @@ import {
 } from "lucide-react"
 
 const soundUrls: Record<string, string> = {
-  rain: "https://actions.google.com/sounds/v1/weather/rain_and_thunder.ogg",
-  ocean: "https://actions.google.com/sounds/v1/water/ocean_waves.ogg",
-  fire: "https://actions.google.com/sounds/v1/fire/fire_crackling.ogg",
-  forest: "https://actions.google.com/sounds/v1/ambiences/forest_ambience.ogg",
-  night: "https://actions.google.com/sounds/v1/ambiences/night_ambience.ogg",
+  rain: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3",
+  ocean: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-11.mp3",
+  fire: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-12.mp3",
+  forest: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-13.mp3",
+  night: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-14.mp3",
   lofi: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
 }
 
@@ -40,9 +40,11 @@ export default function RelaxPage() {
   const [pomodoroActive, setPomodoroActive] = useState(false)
   const [pomodoroMode, setPomodoroMode] = useState<"focus" | "break" | "longBreak">("focus")
   const [sessionCount, setSessionCount] = useState(0)
+  const [focusDuration, setFocusDuration] = useState(25 * 60)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const breathInterval = useRef<ReturnType<typeof setInterval> | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const endTimeRef = useRef<number>(0)
 
   useEffect(() => {
     if (breathPhase !== "idle") {
@@ -60,34 +62,48 @@ export default function RelaxPage() {
 
   useEffect(() => {
     if (pomodoroActive && timer > 0) {
+      endTimeRef.current = Date.now() + timer * 1000
       timerRef.current = setInterval(() => {
-        setTimer((t) => t - 1)
-      }, 1000)
+        const remaining = Math.max(0, Math.round((endTimeRef.current - Date.now()) / 1000))
+        setTimer(remaining)
+        if (remaining <= 0) {
+          clearInterval(timerRef.current!)
+          timerRef.current = null
+          setPomodoroActive(false)
+        }
+      }, 250)
     }
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current)
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+        timerRef.current = null
+      }
     }
   }, [pomodoroActive])
 
   useEffect(() => {
-    if (timer === 0 && pomodoroActive) {
-      setPomodoroActive(false)
-      if (pomodoroMode === "focus") {
-        const newCount = sessionCount + 1
-        setSessionCount(newCount)
-        if (newCount % 4 === 0) {
-          setPomodoroMode("longBreak")
-          setTimer(15 * 60)
+    if (timer === 0 && !pomodoroActive) {
+      playEndSound()
+      const timeout = setTimeout(() => {
+        if (pomodoroMode === "focus") {
+          const newCount = sessionCount + 1
+          setSessionCount(newCount)
+          if (newCount % 4 === 0) {
+            setPomodoroMode("longBreak")
+            setTimer(15 * 60)
+          } else {
+            setPomodoroMode("break")
+            setTimer(5 * 60)
+          }
         } else {
-          setPomodoroMode("break")
-          setTimer(5 * 60)
+          setPomodoroMode("focus")
+          setTimer(focusDuration)
         }
-      } else {
-        setPomodoroMode("focus")
-        setTimer(25 * 60)
-      }
+        setPomodoroActive(true)
+      }, 1500)
+      return () => clearTimeout(timeout)
     }
-  }, [timer])
+  }, [timer, pomodoroActive])
 
   useEffect(() => {
     return () => {
@@ -97,6 +113,23 @@ export default function RelaxPage() {
       }
     }
   }, [])
+
+  function playEndSound() {
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.frequency.value = 880
+      osc.type = "sine"
+      gain.gain.setValueAtTime(0.3, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5)
+      osc.start()
+      osc.stop(ctx.currentTime + 0.6)
+    } catch {
+    }
+  }
 
   const handleSoundToggle = async (soundId: string) => {
     setAudioError(null)
@@ -336,7 +369,7 @@ export default function RelaxPage() {
                   {timer === getMaxTimer() ? "Start Focus" : "Resume"}
                 </Button>
               )}
-              <Button variant="ghost" onClick={() => { setPomodoroActive(false); setPomodoroMode("focus"); setTimer(25 * 60); setSessionCount(0) }}>
+              <Button variant="ghost" onClick={() => { setPomodoroActive(false); setPomodoroMode("focus"); setFocusDuration(25 * 60); setTimer(25 * 60); setSessionCount(0) }}>
                 Reset
               </Button>
             </div>
@@ -349,7 +382,7 @@ export default function RelaxPage() {
               ].map((preset) => (
                 <button
                   key={preset.label}
-                  onClick={() => { setPomodoroActive(false); setPomodoroMode("focus"); setTimer(preset.seconds) }}
+                  onClick={() => { setPomodoroActive(false); setPomodoroMode("focus"); setFocusDuration(preset.seconds); setTimer(preset.seconds) }}
                   className={`text-sm transition-all ${
                     timer === preset.seconds && !pomodoroActive && pomodoroMode === "focus"
                       ? "text-white font-medium border-b-2 border-blue-500 pb-0.5"
@@ -369,6 +402,6 @@ export default function RelaxPage() {
   function getMaxTimer() {
     if (pomodoroMode === "longBreak") return 15 * 60
     if (pomodoroMode === "break") return 5 * 60
-    return 25 * 60
+    return focusDuration
   }
 }

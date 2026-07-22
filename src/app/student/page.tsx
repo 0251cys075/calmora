@@ -4,12 +4,13 @@ import { GlassCard } from "@/components/ui/glass-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import { useState, useEffect, useRef } from "react"
 import {
   GraduationCap, BookOpen, Brain, Timer,
   Target, Clock, Calendar, AlertTriangle,
-  Sparkles, CheckCircle, ArrowRight, Play, Pause, RotateCcw
+  Sparkles, CheckCircle, ArrowRight, Play, Pause, RotateCcw,
+  FileText, X
 } from "lucide-react"
 import Link from "next/link"
 
@@ -19,6 +20,7 @@ export default function StudentPage() {
   const [timerMode, setTimerMode] = useState<"focus" | "break">("focus")
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [completedSessions, setCompletedSessions] = useState<Record<string, boolean>>({})
+  const [activeResource, setActiveResource] = useState<{ title: string; body: string } | null>(null)
 
   const toggleSession = (subject: string) => {
     setCompletedSessions((prev) => ({ ...prev, [subject]: !prev[subject] }))
@@ -82,6 +84,13 @@ export default function StudentPage() {
     const m = Math.floor(seconds / 60)
     const s = seconds % 60
     return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
+  }
+
+  const resourceContents: Record<string, string> = {
+    "Exam Stress Guide": "Exam stress is a common challenge faced by students at all levels. The key to managing it lies in preparation, mindset, and self-care.\n\nEffective Study Strategies: Break your study material into manageable chunks using the Pomodoro Technique — 25 minutes of focused study followed by a 5-minute break. Use active recall and spaced repetition rather than passive rereading.\n\nMindset Shifts: Replace 'I have to get a perfect score' with 'I will do my best.' Perfectionism fuels anxiety. Focus on progress, not perfection.\n\nPhysical Wellbeing: Sleep 7-9 hours before exams. Eat balanced meals. Stay hydrated. Exercise for 20 minutes daily to reduce cortisol levels.\n\nDuring the Exam: Arrive early. Read instructions carefully. Start with questions you know. If you feel panicked, pause and take three slow breaths before continuing.\n\nAfter the Exam: Avoid immediate post-mortem discussions. Reward yourself for your effort regardless of the outcome. Every exam is a learning experience.",
+    "Career Anxiety": "Career anxiety — the fear of making the wrong choice, not being good enough, or failing professionally — is one of the most common sources of stress for students and young professionals.\n\nNormalize Uncertainty: No one has it all figured out. Career paths are rarely linear. Most professionals change roles 5-7 times in their lifetime. The goal isn't to find the 'perfect' path but to take the next right step.\n\nBuild Confidence Through Action: Anxiety shrinks when you take small, concrete steps. Update your LinkedIn profile. Research one industry. Have one informational interview. Action counters paralysis.\n\nFocus on Transferable Skills: Communication, problem-solving, adaptability, and teamwork are valuable across every field. You already have more skills than you think.\n\nSeparate Identity from Career: Your worth is not your job title. Cultivate hobbies, relationships, and interests outside of work. A fulfilling life includes but is not limited to your career.\n\nSeek Mentorship: Talk to professionals in fields you're curious about. Most people are happy to share their journey. Their stories will show you that setbacks are normal and surmountable.",
+    "Burnout Recovery": "Burnout is a state of emotional, physical, and mental exhaustion caused by prolonged stress. Recovery requires intentional rest and systemic change, not just a weekend off.\n\nRecognize the Signs: Chronic fatigue, cynicism toward work/study, reduced performance, irritability, sleep disturbances, and physical symptoms like headaches or stomach issues.\n\nImmediate Steps: Take time off if possible. Reduce non-essential commitments. Prioritize sleep (7-9 hours). Reconnect with activities that bring you joy without pressure to perform.\n\nSet Boundaries: Learn to say no. Protect your time. Communicate your limits clearly. Turn off work notifications after hours.\n\nRebuild Gradually: Return to responsibilities slowly. Start with 60-70% capacity and build up. Celebrate small wins. Adjust expectations — recovery is nonlinear.\n\nPrevent Relapse: Identify your stress triggers. Build regular breaks into your schedule. Maintain social connections. Consider speaking with a therapist or counselor.\n\nRemember: Burnout is your body telling you that something needs to change. Listen to it. Recovery is not a sign of weakness — it's an act of courage.",
+    "Interview Prep": "Interviews can be anxiety-provoking, but thorough preparation transforms nervous energy into confident performance.\n\nResearch the Organization: Understand their mission, values, products, and recent news. Prepare 2-3 thoughtful questions that show genuine curiosity.\n\nPractice Your Story: Prepare concise answers for common questions: 'Tell me about yourself,' 'Why this role?,' 'What are your strengths/weaknesses?' Use the STAR method (Situation, Task, Action, Result) for behavioral questions.\n\nMock Interviews: Practice with a friend, career counselor, or recording yourself. Review your body language, tone, and pacing. The more you practice, the more natural it feels.\n\nMental Preparation: Visualize success. Arrive early. Dress comfortably and professionally. Bring water and extra copies of your resume.\n\nDuring the Interview: Listen carefully before answering. It's okay to pause and collect your thoughts. Be honest if you don't know something — show willingness to learn.\n\nAfter the Interview: Send a thank-you note within 24 hours. Reflect on what went well and what you'd improve. Regardless of the outcome, each interview is practice for the next one.",
   }
 
   const resources = [
@@ -290,7 +299,10 @@ export default function StudentPage() {
           {resources.map((resource) => {
             const Icon = resource.icon
             return (
-              <GlassCard key={resource.title} hover>
+              <GlassCard key={resource.title} hover onClick={() => {
+                const body = resourceContents[resource.title]
+                if (body) setActiveResource({ title: resource.title, body })
+              }}>
                 <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${resource.gradient} flex items-center justify-center mb-3`}>
                   <Icon className={`w-5 h-5 text-white`} />
                 </div>
@@ -301,6 +313,43 @@ export default function StudentPage() {
           })}
         </div>
       </motion.div>
+
+      <AnimatePresence>
+        {activeResource && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            onClick={() => setActiveResource(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl border border-white/10 shadow-2xl bg-[#0a0f1e]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="sticky top-0 bg-[#0a0f1e] border-b border-white/10 p-4 flex items-center justify-between z-10">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+                    <FileText className="w-5 h-5 text-white" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-white">{activeResource.title}</h3>
+                </div>
+                <button onClick={() => setActiveResource(null)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/20 transition-all flex-shrink-0">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="p-6">
+                {activeResource.body.split("\n\n").map((paragraph, i) => (
+                  <p key={i} className="text-sm text-white/80 leading-relaxed mb-4">{paragraph}</p>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
