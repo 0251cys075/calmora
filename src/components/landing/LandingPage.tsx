@@ -26,10 +26,11 @@ const item = {
 }
 
 export function LandingPage() {
-  const { login } = useAuth()
+  const { guestLogin } = useAuth()
 
   const handleGuestLogin = async () => {
-    await login("demo@calmora.app", "demopassword123")
+    await guestLogin()
+    window.location.href = "/"
   }
 
   const benefits = [
