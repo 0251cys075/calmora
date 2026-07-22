@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { signInWithPopup } from "firebase/auth"
+import { signInWithPopup, signInWithRedirect, getRedirectResult } from "firebase/auth"
 import { getFirebaseAuth } from "@/lib/firebase"
 import type { UserData } from "@/lib/api"
 
@@ -66,10 +66,39 @@ export function useAuth() {
     error: null,
   })
 
-  // On mount, restore user from localStorage
+  // On mount, restore user from localStorage AND handle Google redirect result
   useEffect(() => {
     const user = getStoredUser()
-    setState({ user, loading: false, error: null })
+    if (user) {
+      setState({ user, loading: false, error: null })
+      return
+    }
+
+    // Check if we're returning from a Google redirect sign-in
+    const firebase = getFirebaseAuth()
+    if (firebase) {
+      setState((s) => ({ ...s, loading: true }))
+      getRedirectResult(firebase.auth)
+        .then((result) => {
+          if (result?.user) {
+            const firebaseUser = result.user
+            const newUser = createUserData(
+              firebaseUser.displayName || "Calmora User",
+              firebaseUser.email || "user@calmora.app",
+              firebaseUser.photoURL || undefined
+            )
+            setUser(newUser)
+            setState({ user: newUser, loading: false, error: null })
+          } else {
+            setState({ user: null, loading: false, error: null })
+          }
+        })
+        .catch(() => {
+          setState({ user: null, loading: false, error: null })
+        })
+    } else {
+      setState({ user: null, loading: false, error: null })
+    }
   }, [])
 
   const login = useCallback(async (email: string, password: string) => {
@@ -137,29 +166,37 @@ export function useAuth() {
         return false
       }
 
-      const result = await signInWithPopup(firebase.auth, firebase.googleProvider)
-      const firebaseUser = result.user
-
-      const user = createUserData(
-        firebaseUser.displayName || "Calmora User",
-        firebaseUser.email || "user@calmora.app",
-        firebaseUser.photoURL || undefined
-      )
-
-      setUser(user)
-      setState({ user, loading: false, error: null })
-      return true
-    } catch (err: unknown) {
-      let message = "Google sign-in failed. Please try again."
-      if (err && typeof err === "object" && "code" in err) {
-        const code = (err as { code: string }).code
-        if (code === "auth/popup-closed-by-user") {
-          message = "Sign-in popup was closed. Please try again."
-        } else if (code === "auth/popup-blocked") {
-          message = "Pop-up was blocked by your browser. Please allow pop-ups for this site."
-        } else if (code === "auth/configuration-not-found" || code === "auth/invalid-api-key") {
-          message = "Firebase is not configured yet. Please use email sign-up or guest access."
+      // Try popup first, fall back to redirect if popup is blocked
+      try {
+        const result = await signInWithPopup(firebase.auth, firebase.googleProvider)
+        const firebaseUser = result.user
+        const user = createUserData(
+          firebaseUser.displayName || "Calmora User",
+          firebaseUser.email || "user@calmora.app",
+          firebaseUser.photoURL || undefined
+        )
+        setUser(user)
+        setState({ user, loading: false, error: null })
+        return true
+      } catch (popupErr: unknown) {
+        const code = (popupErr as { code?: string })?.code ?? ""
+        // If popup was blocked or not allowed, use redirect flow instead
+        if (code === "auth/popup-blocked" || code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
+          // Redirect flow: page will reload and getRedirectResult will handle it
+          await signInWithRedirect(firebase.auth, firebase.googleProvider)
+          return true
         }
+        throw popupErr
+      }
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code ?? ""
+      let message = `Google sign-in failed (${code || "unknown error"}). Please try again.`
+      if (code === "auth/unauthorized-domain") {
+        message = "This domain is not authorized in Firebase. Please contact support."
+      } else if (code === "auth/configuration-not-found" || code === "auth/invalid-api-key") {
+        message = "Firebase is not configured. Please use email sign-up or guest access."
+      } else if (code === "auth/network-request-failed") {
+        message = "Network error. Check your internet connection and try again."
       }
       setState((s) => ({ ...s, loading: false, error: message }))
       return false
