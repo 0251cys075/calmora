@@ -13,11 +13,11 @@ import {
 } from "lucide-react"
 
 const soundUrls: Record<string, string> = {
-  rain: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3",
-  ocean: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-11.mp3",
-  fire: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-12.mp3",
-  forest: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-13.mp3",
-  night: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-14.mp3",
+  rain: "https://assets.mixkit.co/active_storage/sfx/2394/2394.wav",
+  ocean: "https://assets.mixkit.co/active_storage/sfx/1196/1196.wav",
+  fire: "https://assets.mixkit.co/active_storage/sfx/1330/1330.wav",
+  forest: "https://assets.mixkit.co/active_storage/sfx/1210/1210.wav",
+  night: "https://assets.mixkit.co/active_storage/sfx/1789/1789.wav",
   lofi: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
 }
 

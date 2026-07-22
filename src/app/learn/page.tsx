@@ -9,7 +9,7 @@ import { categories, getContentByCategory, type ContentItem } from "@/lib/data/c
 import {
   Sparkles, BookOpen, Play, Headphones,
   Search, Bookmark, Clock, ChevronRight, X,
-  Pause, Volume2, FileText
+  Pause, Volume2, VolumeX, Rewind, FastForward, FileText
 } from "lucide-react"
 
 const videoEmbeds: Record<string, string> = {
@@ -24,14 +24,14 @@ const videoEmbeds: Record<string, string> = {
 }
 
 const podcastUrls: Record<string, string> = {
-  "anx-3": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
-  "str-3": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
-  "med-3": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
-  "pro-3": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
-  "slp-3": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3",
-  "rel-3": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3",
-  "stu-3": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3",
-  "min-3": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3",
+  "anx-3": "https://assets.mixkit.co/music/324/324.mp3",
+  "str-3": "https://assets.mixkit.co/music/292/292.mp3",
+  "med-3": "https://assets.mixkit.co/music/345/345.mp3",
+  "pro-3": "https://assets.mixkit.co/music/443/443.mp3",
+  "slp-3": "https://assets.mixkit.co/music/584/584.mp3",
+  "rel-3": "https://assets.mixkit.co/music/127/127.mp3",
+  "stu-3": "https://assets.mixkit.co/music/16/16.mp3",
+  "min-3": "https://assets.mixkit.co/music/444/444.mp3",
 }
 
 const articleContents: Record<string, { title: string; body: string }> = {
@@ -87,6 +87,7 @@ export default function LearnPage() {
   const [audioProgress, setAudioProgress] = useState(0)
   const [audioDuration, setAudioDuration] = useState(0)
   const [audioCurrentTime, setAudioCurrentTime] = useState(0)
+  const [audioVolume, setAudioVolume] = useState(1)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
   const content = getContentByCategory(activeCategory)
@@ -101,6 +102,14 @@ export default function LearnPage() {
   }, [])
 
   const handlePlay = (item: ContentItem) => {
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current = null
+    }
+    setAudioPlaying(false)
+    setAudioProgress(0)
+    setAudioCurrentTime(0)
+    setAudioDuration(0)
     if (item.type === "video") {
       const embedUrl = videoEmbeds[item.id]
       if (embedUrl) {
@@ -164,6 +173,32 @@ export default function LearnPage() {
     setAudioProgress(0)
     setAudioCurrentTime(0)
     setAudioDuration(0)
+  }
+
+  const skipForward = () => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = Math.min(audioRef.current.currentTime + 10, audioDuration)
+    }
+  }
+
+  const skipBackward = () => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = Math.max(audioRef.current.currentTime - 10, 0)
+    }
+  }
+
+  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (audioRef.current && audioDuration > 0) {
+      const rect = e.currentTarget.getBoundingClientRect()
+      const fraction = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+      audioRef.current.currentTime = fraction * audioDuration
+    }
+  }
+
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const vol = parseFloat(e.target.value)
+    setAudioVolume(vol)
+    if (audioRef.current) audioRef.current.volume = vol
   }
 
   const formatAudioTime = (seconds: number) => {
@@ -372,20 +407,56 @@ export default function LearnPage() {
                 <p className="text-sm text-white/40 mb-6">Podcast Episode</p>
 
                 <div className="space-y-4">
-                  <div className="h-2 rounded-full bg-white/10 overflow-hidden">
-                    <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 transition-all duration-300" style={{ width: `${audioProgress}%` }} />
+                  <div
+                    className="h-2 rounded-full bg-white/10 overflow-hidden cursor-pointer group"
+                    onClick={handleSeek}
+                  >
+                    <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 relative" style={{ width: `${audioProgress}%` }}>
+                      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
                   </div>
                   <div className="flex justify-between text-xs text-white/40">
                     <span>{formatAudioTime(audioCurrentTime)}</span>
                     <span>{audioDuration ? formatAudioTime(audioDuration) : "--:--"}</span>
                   </div>
-                  <div className="flex justify-center gap-4">
+                  <div className="flex items-center justify-center gap-6">
+                    <button
+                      onClick={skipBackward}
+                      className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/20 transition-all"
+                      title="Rewind 10s"
+                    >
+                      <Rewind className="w-5 h-5" />
+                    </button>
                     <button
                       onClick={toggleAudio}
                       className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center hover:scale-105 transition-transform"
                     >
                       {audioPlaying ? <Pause className="w-6 h-6 text-white" /> : <Play className="w-6 h-6 text-white ml-0.5" />}
                     </button>
+                    <button
+                      onClick={skipForward}
+                      className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/20 transition-all"
+                      title="Forward 10s"
+                    >
+                      <FastForward className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      onClick={() => handleVolumeChange({ target: { value: audioVolume > 0 ? "0" : "1" } } as any)}
+                      className="text-white/40 hover:text-white transition-all"
+                    >
+                      {audioVolume > 0 ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                    </button>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={audioVolume}
+                      onChange={handleVolumeChange}
+                      className="w-24 h-1 rounded-full appearance-none bg-white/20 cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
+                    />
                   </div>
                 </div>
               </div>
