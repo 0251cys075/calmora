@@ -3,13 +3,40 @@
 import { GlassCard } from "@/components/ui/glass-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import { useState } from "react"
 import { categories, getContentByCategory, type ContentItem } from "@/lib/data/content"
 import {
   Sparkles, BookOpen, Play, Headphones,
-  Search, Bookmark, Clock, ChevronRight
+  Search, Bookmark, Clock, ChevronRight, X
 } from "lucide-react"
+
+const videoEmbeds: Record<string, string> = {
+  "anx-1": "https://www.youtube.com/embed/5qap5aO4i9A",
+  "anx-2": "",
+  "anx-3": "",
+  "str-1": "https://www.youtube.com/embed/inpok4MKVLM",
+  "str-2": "",
+  "str-3": "",
+  "med-1": "https://www.youtube.com/embed/sss7L_NF0ak",
+  "med-2": "",
+  "med-3": "",
+  "pro-1": "https://www.youtube.com/embed/Ip2KtKuV9rI",
+  "pro-2": "",
+  "pro-3": "",
+  "slp-1": "https://www.youtube.com/embed/t0k2k1mG7kM",
+  "slp-2": "",
+  "slp-3": "",
+  "rel-1": "https://www.youtube.com/embed/7Qlq7GxoHoA",
+  "rel-2": "",
+  "rel-3": "",
+  "stu-1": "https://www.youtube.com/embed/dQw4w9WgXcQ",
+  "stu-2": "",
+  "stu-3": "",
+  "min-1": "https://www.youtube.com/embed/sss7L_NF0ak",
+  "min-2": "",
+  "min-3": "",
+}
 
 const typeIcons: Record<string, React.ReactNode> = {
   video: <Play className="w-3 h-3" />,
@@ -20,8 +47,18 @@ const typeIcons: Record<string, React.ReactNode> = {
 export default function LearnPage() {
   const [activeCategory, setActiveCategory] = useState("anxiety")
   const [bookmarked, setBookmarked] = useState<string[]>([])
+  const [activeVideoUrl, setActiveVideoUrl] = useState<string | null>(null)
 
   const content = getContentByCategory(activeCategory)
+
+  const handlePlay = (item: ContentItem) => {
+    if (item.type === "video") {
+      const embedUrl = videoEmbeds[item.id]
+      if (embedUrl) {
+        setActiveVideoUrl(embedUrl)
+      }
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -32,7 +69,7 @@ export default function LearnPage() {
             <p className="text-white/50 mt-1">Discover resources for your wellness journey</p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="relative">
+            <div className="relative hidden sm:block">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
               <input
                 type="text"
@@ -52,12 +89,12 @@ export default function LearnPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
       >
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
+        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin -mx-4 px-4">
           {categories.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setActiveCategory(cat.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl whitespace-nowrap transition-all border ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl whitespace-nowrap transition-all border flex-shrink-0 ${
                 activeCategory === cat.id
                   ? "bg-white/10 text-white border-white/20"
                   : "bg-white/5 text-white/50 border-white/10 hover:bg-white/10"
@@ -101,7 +138,7 @@ export default function LearnPage() {
                       <h3 className="font-medium text-white text-sm">{item.title}</h3>
                       <p className="text-xs text-white/50 mt-1 line-clamp-2">{item.description}</p>
                       <div className="flex items-center gap-2 mt-2">
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" onClick={() => handlePlay(item)}>
                           <Play className="w-3 h-3" />
                           {item.type === "video" ? "Watch" : item.type === "article" ? "Read" : "Listen"}
                         </Button>
@@ -166,6 +203,40 @@ export default function LearnPage() {
           </GlassCard>
         </motion.div>
       </div>
+
+      <AnimatePresence>
+        {activeVideoUrl && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            onClick={() => setActiveVideoUrl(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative w-full max-w-3xl aspect-video rounded-2xl overflow-hidden border border-white/10 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setActiveVideoUrl(null)}
+                className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/80 transition-all"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <iframe
+                src={activeVideoUrl}
+                className="w-full h-full"
+                allow="autoplay; encrypted-media"
+                allowFullScreen
+                title="Video player"
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

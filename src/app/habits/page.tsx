@@ -15,7 +15,7 @@ import {
 import { habitsApi, moodsApi, withFallback, isOnline, type HabitData } from "@/lib/api"
 import { useLocalStorage } from "@/lib/hooks/useLocalStorage"
 
-const moods = [
+const moodsConfig = [
   { value: 5, icon: <Smile className="w-6 h-6" />, label: "Great", color: "text-emerald-400", bg: "bg-emerald-500/20 border-emerald-500/30" },
   { value: 4, icon: <Sun className="w-6 h-6" />, label: "Good", color: "text-blue-400", bg: "bg-blue-500/20 border-blue-500/30" },
   { value: 3, icon: <Meh className="w-6 h-6" />, label: "Okay", color: "text-amber-400", bg: "bg-amber-500/20 border-amber-500/30" },
@@ -35,21 +35,38 @@ const defaultHabits = [
 const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 const currentDay = new Date().getDay()
 
+interface LocalHabit {
+  id: string
+  name: string
+  icon: React.ElementType
+  color: string
+  completed: boolean
+  streak: number
+  time: string
+  logs: { date: string; completed: boolean }[]
+}
+
 export default function HabitsPage() {
   const [selectedMood, setSelectedMood] = useState<number | null>(null)
   const [habitsList, setHabitsList] = useLocalStorage<HabitData[]>("calmora_habits", [])
   const [habitNote, setHabitNote] = useState("")
   const [weeklyMood, setWeeklyMood] = useLocalStorage<number[]>("calmora_weekly_mood", [3, 4, 2, 5, 4, 3, 3])
+  const [moodEntries, setMoodEntries] = useLocalStorage<{ mood: number; note: string; date: string }[]>("calmora_mood_entries", [])
   const [savingMood, setSavingMood] = useState(false)
   const [loading, setLoading] = useState(true)
   const [offline, setOffline] = useState(false)
 
   useEffect(() => {
+    if (habitsList.length === 0) {
+      setHabitsList(defaultHabits as unknown as HabitData[])
+    }
+
     if (!isOnline()) {
       setOffline(true)
       setLoading(false)
       return
     }
+
     Promise.all([
       withFallback(() => habitsApi.list(), { habits: [] }),
       withFallback(() => moodsApi.weekly(), { weekly: [] }),
@@ -62,63 +79,71 @@ export default function HabitsPage() {
     }).catch(() => setOffline(true)).finally(() => setLoading(false))
   }, [])
 
-  const displayHabits = habitsList.length > 0
-    ? habitsList.map((h) => {
-        const dh = defaultHabits.find((d) => d.name === h.name)
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-        const todayLog = h.logs?.find((l) => new Date(l.date).setHours(0, 0, 0, 0) === today.getTime())
-        return {
-          id: h._id || h.name,
-          name: h.name,
-          icon: dh?.icon || Activity,
-          color: dh?.color || "text-blue-400",
-          completed: todayLog?.completed ?? false,
-          streak: h.streak || 0,
-          time: dh?.time || "",
-          logs: h.logs || [],
-        }
-      })
-    : defaultHabits
+  const getTodayDate = () => {
+    const d = new Date()
+    d.setHours(0, 0, 0, 0)
+    return d
+  }
 
-  const toggleHabit = useCallback(async (id: string) => {
-    setHabitsList((prev) =>
-      prev.map((h) => {
+  const computeDisplayHabits = useCallback((): LocalHabit[] => {
+    if (habitsList.length === 0) return defaultHabits as LocalHabit[]
+    return habitsList.map((h) => {
+      const dh = defaultHabits.find((d) => d.name === h.name)
+      const today = getTodayDate().getTime()
+      const todayLog = h.logs?.find((l) => new Date(l.date).setHours(0, 0, 0, 0) === today)
+      return {
+        id: h._id || h.name || dh?.id || h.name,
+        name: h.name,
+        icon: dh?.icon || Activity,
+        color: dh?.color || "text-blue-400",
+        completed: todayLog?.completed ?? false,
+        streak: h.streak || 0,
+        time: dh?.time || "",
+        logs: h.logs || [],
+      }
+    })
+  }, [habitsList])
+
+  const displayHabits = computeDisplayHabits()
+
+  const toggleHabit = useCallback((id: string) => {
+    setHabitsList((prev) => {
+      const updated = prev.map((h) => {
         const habitId = h._id || h.name
         if (habitId !== id) return h
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
+        const today = getTodayDate()
+        const todayTime = today.getTime()
         const existingLog = (h.logs || []).find(
-          (l) => new Date(l.date).setHours(0, 0, 0, 0) === today.getTime()
+          (l) => new Date(l.date).setHours(0, 0, 0, 0) === todayTime
         )
         const newCompleted = !(existingLog?.completed ?? false)
         const newLogs = existingLog
           ? (h.logs || []).map((l) =>
-              new Date(l.date).setHours(0, 0, 0, 0) === today.getTime()
+              new Date(l.date).setHours(0, 0, 0, 0) === todayTime
                 ? { ...l, completed: newCompleted }
                 : l
             )
           : [...(h.logs || []), { date: today.toISOString(), completed: true }]
 
-        return {
-          ...h,
-          logs: newLogs,
-          streak: newCompleted ? (h.streak || 0) + 1 : 0,
-        }
+        const newStreak = newCompleted
+          ? (h.streak || 0) + 1
+          : Math.max(0, (h.streak || 0) - 1)
+
+        return { ...h, logs: newLogs, streak: newStreak }
       })
-    )
+      return updated
+    })
 
     if (!isOnline()) return
-    try {
-      await habitsApi.toggle(id)
-    } catch {
-      // silently fail
-    }
+    habitsApi.toggle(id).catch(() => {})
   }, [])
 
-  const handleMoodSubmit = async () => {
+  const handleMoodSubmit = () => {
     if (!selectedMood) return
     setSavingMood(true)
+
+    const today = new Date().toISOString()
+    setMoodEntries((prev) => [...prev, { mood: selectedMood, note: habitNote, date: today }])
 
     setWeeklyMood((prev) => {
       const next = [...prev]
@@ -126,16 +151,15 @@ export default function HabitsPage() {
       return next
     })
 
+    setSelectedMood(null)
+    setHabitNote("")
+
     if (!isOnline()) {
       setSavingMood(false)
       return
     }
 
-    try {
-      await moodsApi.create({ mood: selectedMood, note: habitNote })
-    } catch {
-      // silently fail
-    }
+    moodsApi.create({ mood: selectedMood, note: habitNote }).catch(() => {})
     setSavingMood(false)
   }
 
@@ -225,7 +249,7 @@ export default function HabitsPage() {
             <h2 className="text-lg font-semibold text-white mb-4">Mood Check</h2>
             <p className="text-sm text-white/50 mb-3">How are you feeling right now?</p>
             <div className="grid grid-cols-5 gap-2 mb-4">
-              {moods.map((mood) => (
+              {moodsConfig.map((mood) => (
                 <button
                   key={mood.value}
                   onClick={() => setSelectedMood(mood.value)}
@@ -305,21 +329,24 @@ export default function HabitsPage() {
           <h2 className="text-lg font-semibold text-white mb-4">Monthly Overview</h2>
           <div className="grid grid-cols-7 gap-1">
             {Array.from({ length: 30 }).map((_, i) => {
-              const moodVal = [null, null, null, 4, 5, 3, 4, 2, 5, 4, 3, 4, 5, 3, 4, 2, 3, 5, 4, 3, 4, 5, 3, 4, 2, 4, 5, 3, 4, null][i]
-              const isToday = i === 15
+              const dayMood = moodEntries.find((e) => {
+                const entryDate = new Date(e.date)
+                return entryDate.getDate() === i + 1 && entryDate.getMonth() === new Date().getMonth()
+              })
+              const isToday = i === new Date().getDate() - 1
               return (
                 <div
                   key={i}
                   className={`aspect-square rounded-md flex items-center justify-center text-xs transition-all ${
                     isToday ? "ring-2 ring-blue-500/50" : ""
                   } ${
-                    moodVal === null
+                    !dayMood
                       ? "bg-white/5"
-                      : moodVal >= 4
+                      : dayMood.mood >= 4
                       ? "bg-emerald-500/40"
-                      : moodVal >= 3
+                      : dayMood.mood >= 3
                       ? "bg-blue-500/30"
-                      : moodVal >= 2
+                      : dayMood.mood >= 2
                       ? "bg-amber-500/30"
                       : "bg-rose-500/30"
                   }`}

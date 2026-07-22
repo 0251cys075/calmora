@@ -9,8 +9,17 @@ import {
   Wind, Music, Headphones, Timer,
   Play, Pause, SkipForward, Volume2,
   Cloud, Waves, Flame, Sunrise,
-  Trees, Moon
+  Trees, Moon, VolumeX
 } from "lucide-react"
+
+const soundUrls: Record<string, string> = {
+  rain: "https://assets.mixkit.co/active_storage/sfx/2433/2433-84.wav",
+  ocean: "https://assets.mixkit.co/active_storage/sfx/2437/2437-84.wav",
+  fire: "https://assets.mixkit.co/active_storage/sfx/2432/2432-84.wav",
+  forest: "https://assets.mixkit.co/active_storage/sfx/2438/2438-84.wav",
+  night: "https://assets.mixkit.co/active_storage/sfx/2436/2436-84.wav",
+  lofi: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+}
 
 const sounds = [
   { id: "rain", name: "Rain", icon: Cloud, color: "text-blue-400", gradient: "from-blue-500 to-cyan-500" },
@@ -28,14 +37,16 @@ export default function RelaxPage() {
   const [breathPhase, setBreathPhase] = useState<"in" | "hold" | "out" | "idle">("idle")
   const [timer, setTimer] = useState(25 * 60)
   const [pomodoroActive, setPomodoroActive] = useState(false)
-  const breathInterval = useRef<NodeJS.Timeout | null>(null)
+  const [pomodoroMode, setPomodoroMode] = useState<"focus" | "break">("focus")
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const breathInterval = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     if (breathPhase !== "idle") {
-      const phases = ["in", "hold", "out", "hold"]
+      const phases = ["in", "hold", "out", "hold"] as const
       let i = 0
       breathInterval.current = setInterval(() => {
-        setBreathPhase(phases[i] as "in" | "hold" | "out")
+        setBreathPhase(phases[i])
         i = (i + 1) % phases.length
       }, 4000)
     }
@@ -45,12 +56,59 @@ export default function RelaxPage() {
   }, [breathPhase !== "idle"])
 
   useEffect(() => {
-    let interval: NodeJS.Timeout
+    let interval: ReturnType<typeof setInterval>
     if (pomodoroActive && timer > 0) {
       interval = setInterval(() => setTimer((t) => t - 1), 1000)
     }
     return () => clearInterval(interval)
   }, [pomodoroActive, timer])
+
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current = null
+      }
+    }
+  }, [])
+
+  const handleSoundToggle = (soundId: string) => {
+    if (activeSound === soundId && isPlaying) {
+      audioRef.current?.pause()
+      setIsPlaying(false)
+      setActiveSound(null)
+      return
+    }
+
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current = null
+    }
+
+    const url = soundUrls[soundId]
+    if (!url) return
+
+    const audio = new Audio(url)
+    audio.loop = true
+    audio.volume = 0.5
+    audio.play().catch(() => {})
+    audioRef.current = audio
+    setActiveSound(soundId)
+    setIsPlaying(true)
+  }
+
+  useEffect(() => {
+    if (timer === 0 && pomodoroActive) {
+      setPomodoroActive(false)
+      if (pomodoroMode === "focus") {
+        setPomodoroMode("break")
+        setTimer(5 * 60)
+      } else {
+        setPomodoroMode("focus")
+        setTimer(25 * 60)
+      }
+    }
+  }, [timer, pomodoroActive, pomodoroMode])
 
   const formatTimer = (seconds: number) => {
     const m = Math.floor(seconds / 60)
@@ -75,7 +133,7 @@ export default function RelaxPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.05 }}
-        className="flex gap-2"
+        className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin"
       >
         {tabs.map((tab) => {
           const TabIcon = tab.icon
@@ -83,7 +141,7 @@ export default function RelaxPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all border ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all border flex-shrink-0 ${
                 activeTab === tab.id
                   ? "bg-white/10 text-white border-white/20"
                   : "bg-white/5 text-white/50 border-white/10 hover:bg-white/10"
@@ -168,7 +226,7 @@ export default function RelaxPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             {sounds.map((sound) => {
               const SoundIcon = sound.icon
               const isActive = activeSound === sound.id
@@ -176,15 +234,12 @@ export default function RelaxPage() {
                 <GlassCard
                   key={sound.id}
                   className={`text-center p-4 ${isActive ? "ring-2 ring-blue-500/50" : ""}`}
-                  onClick={() => {
-                    setActiveSound(isActive ? null : sound.id)
-                    setIsPlaying(!isActive)
-                  }}
+                  onClick={() => handleSoundToggle(sound.id)}
                 >
                   <div className={`w-12 h-12 mx-auto rounded-xl bg-gradient-to-br ${sound.gradient} flex items-center justify-center mb-2 shadow-lg ${
                     isActive ? "animate-pulse" : ""
                   }`}>
-                    <SoundIcon className={`w-6 h-6 text-white ${isActive ? "animate-float" : ""}`} />
+                    {isActive ? <Volume2 className="w-6 h-6 text-white" /> : <SoundIcon className="w-6 h-6 text-white" />}
                   </div>
                   <p className="text-sm font-medium text-white">{sound.name}</p>
                   <p className="text-xs text-white/40 mt-1">
@@ -203,28 +258,28 @@ export default function RelaxPage() {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.1 }}
         >
-          <GlassCard className="text-center py-12">
-            <div className="w-48 h-48 mx-auto rounded-full border-4 border-white/10 flex items-center justify-center mb-8 relative">
+          <GlassCard className="text-center py-8 sm:py-12">
+            <div className="w-40 h-40 sm:w-48 sm:h-48 mx-auto rounded-full border-4 border-white/10 flex items-center justify-center mb-8 relative">
               <div className="absolute inset-2 rounded-full border border-white/5" />
               <svg className="absolute inset-0 w-full h-full -rotate-90">
                 <circle
-                  cx="96"
-                  cy="96"
-                  r="88"
+                  cx="50%"
+                  cy="50%"
+                  r="44%"
                   fill="none"
                   stroke="rgba(59,130,246,0.2)"
                   strokeWidth="4"
                 />
                 <circle
-                  cx="96"
-                  cy="96"
-                  r="88"
+                  cx="50%"
+                  cy="50%"
+                  r="44%"
                   fill="none"
                   stroke="url(#gradient)"
                   strokeWidth="4"
                   strokeLinecap="round"
-                  strokeDasharray={`${2 * Math.PI * 88}`}
-                  strokeDashoffset={`${2 * Math.PI * 88 * (1 - timer / (25 * 60))}`}
+                  strokeDasharray={`${2 * Math.PI * 44}`}
+                  strokeDashoffset={`${2 * Math.PI * 44 * (1 - timer / (pomodoroMode === "focus" ? 25 * 60 : 5 * 60))}`}
                   className="transition-all duration-1000"
                 />
                 <defs>
@@ -235,8 +290,8 @@ export default function RelaxPage() {
                 </defs>
               </svg>
               <div className="text-center">
-                <p className="text-4xl font-bold text-white">{formatTimer(timer)}</p>
-                <p className="text-sm text-white/40 mt-1">Focus Time</p>
+                <p className="text-3xl sm:text-4xl font-bold text-white">{formatTimer(timer)}</p>
+                <p className="text-xs text-white/40 mt-1 capitalize">{pomodoroMode} Time</p>
               </div>
             </div>
 
@@ -253,24 +308,38 @@ export default function RelaxPage() {
               ) : (
                 <Button
                   size="lg"
-                  onClick={() => { setPomodoroActive(true); if (timer === 0) setTimer(25 * 60) }}
+                  onClick={() => { setPomodoroActive(true); if (timer === 0) setTimer(pomodoroMode === "focus" ? 25 * 60 : 5 * 60) }}
                   icon={<Play className="w-5 h-5" />}
                 >
-                  {timer === 25 * 60 ? "Start Focus" : "Resume"}
+                  {timer === (pomodoroMode === "focus" ? 25 * 60 : 5 * 60) ? "Start Focus" : "Resume"}
                 </Button>
               )}
               <Button
                 variant="ghost"
-                onClick={() => { setPomodoroActive(false); setTimer(25 * 60) }}
+                onClick={() => { setPomodoroActive(false); setPomodoroMode("focus"); setTimer(25 * 60) }}
               >
                 Reset
               </Button>
             </div>
 
             <div className="flex items-center justify-center gap-4 mt-6">
-              <button className="text-sm text-white/40 hover:text-white transition-all">5 min</button>
-              <button className="text-sm text-white font-medium border-b-2 border-blue-500 pb-0.5">25 min</button>
-              <button className="text-sm text-white/40 hover:text-white transition-all">50 min</button>
+              {[
+                { label: "5 min", seconds: 5 * 60 },
+                { label: "25 min", seconds: 25 * 60 },
+                { label: "50 min", seconds: 50 * 60 },
+              ].map((preset) => (
+                <button
+                  key={preset.label}
+                  onClick={() => { setPomodoroActive(false); setPomodoroMode("focus"); setTimer(preset.seconds) }}
+                  className={`text-sm transition-all ${
+                    timer === preset.seconds && !pomodoroActive
+                      ? "text-white font-medium border-b-2 border-blue-500 pb-0.5"
+                      : "text-white/40 hover:text-white"
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              ))}
             </div>
           </GlassCard>
         </motion.div>

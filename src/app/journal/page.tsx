@@ -4,7 +4,7 @@ import { GlassCard } from "@/components/ui/glass-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { motion } from "framer-motion"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import {
   BookOpen, Sparkles, Heart, Target,
   Send, Brain, Lightbulb,
@@ -26,69 +26,71 @@ export default function JournalPage() {
   const [journalEntry, setJournalEntry] = useState("")
   const [showPrompts, setShowPrompts] = useState(true)
   const [entries, setEntries] = useLocalStorage<JournalEntry[]>("calmora_journal_entries", [])
-  const [summary, setSummary] = useLocalStorage("calmora_journal_summary", {
-    totalEntries: 0, avgMood: 0, topTopic: "None", gratitudeCount: 0,
-  })
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [offline, setOffline] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!isOnline()) {
-      setOffline(true)
       setLoading(false)
       return
     }
-    Promise.all([
-      withFallback(() => journalApi.list(), { entries: [] }),
-      withFallback(() => journalApi.summary(), {
-        summary: { totalEntries: 0, avgMood: 0, topTopic: "None", gratitudeCount: 0 },
-      }),
-    ]).then(([entriesRes, summaryRes]) => {
-      if (entriesRes.entries.length) setEntries(entriesRes.entries)
-      setSummary(summaryRes.summary)
-      setOffline(false)
-    }).catch(() => setOffline(true)).finally(() => setLoading(false))
+
+    withFallback(() => journalApi.list(), { entries: [] })
+      .then((res) => {
+        if (res.entries.length) setEntries(res.entries)
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
   }, [])
 
-  const handleSave = async () => {
+  const summary = useMemo(() => {
+    const totalEntries = entries.length
+    const moods = entries.filter((e) => e.mood).map((e) => e.mood!)
+    const avgMood = moods.length ? moods.reduce((a, b) => a + b, 0) / moods.length : 0
+    const gratitudeCount = entries.filter((e) => {
+      const content = (e.title + " " + e.content).toLowerCase()
+      return content.includes("grateful") || content.includes("gratitude") || content.includes("thank")
+    }).length
+    const allWords = entries.flatMap((e) => (e.title + " " + e.content).toLowerCase().split(/\s+/))
+    const stopWords = new Set(["the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "is", "was", "i", "my", "me", "we", "you", "it", "that", "this", "not", "have", "do", "be", "are", "am", "he", "she", "they", "so", "up", "out", "if", "just", "all", "now", "then", "can", "did", "get", "got", "has"])
+    const wordFreq: Record<string, number> = {}
+    allWords.forEach((w) => {
+      if (w.length > 2 && !stopWords.has(w)) {
+        wordFreq[w] = (wordFreq[w] || 0) + 1
+      }
+    })
+    const topTopic = Object.entries(wordFreq).sort((a, b) => b[1] - a[1])[0]?.[0] || "None"
+
+    return { totalEntries, avgMood: Math.round(avgMood * 10) / 10, topTopic, gratitudeCount }
+  }, [entries])
+
+  const handleSave = () => {
     if (!journalEntry.trim()) return
     setSaving(true)
     setSaveError(null)
-    const entryData = { content: journalEntry, title: journalEntry.split("\n")[0].slice(0, 60) }
+    const content = journalEntry.trim()
+    const title = content.split("\n")[0].slice(0, 60) || "Untitled"
 
-    if (!isOnline()) {
-      const localEntry: JournalEntry = {
-        _id: `local_${Date.now()}`,
-        title: entryData.title,
-        content: journalEntry,
-        date: new Date().toISOString(),
-      }
-      setEntries((prev) => [localEntry, ...prev])
-      setSummary((prev) => ({ ...prev, totalEntries: prev.totalEntries + 1 }))
-      setJournalEntry("")
-      setSaving(false)
-      return
+    const localEntry: JournalEntry = {
+      _id: `local_${Date.now()}`,
+      title,
+      content,
+      date: new Date().toISOString(),
     }
+    setEntries((prev) => [localEntry, ...prev])
+    setJournalEntry("")
+    setSaving(false)
 
-    try {
-      const { entry } = await journalApi.create(entryData)
-      setEntries((prev) => [entry, ...prev])
-      setSummary((prev) => ({ ...prev, totalEntries: prev.totalEntries + 1 }))
-      setJournalEntry("")
-    } catch {
-      setSaveError("Failed to save. Saved offline instead.")
-      const localEntry: JournalEntry = {
-        _id: `local_${Date.now()}`,
-        title: entryData.title,
-        content: journalEntry,
-        date: new Date().toISOString(),
-      }
-      setEntries((prev) => [localEntry, ...prev])
-    } finally {
-      setSaving(false)
-    }
+    if (!isOnline()) return
+
+    journalApi.create({ content, title })
+      .then(({ entry }) => {
+        setEntries((prev) => prev.map((e) => e._id === localEntry._id ? entry : e))
+      })
+      .catch(() => {
+        setSaveError("Saved locally. Could not sync to server.")
+      })
   }
 
   const getMoodEmoji = (mood?: number) => {
@@ -108,7 +110,7 @@ export default function JournalPage() {
             <p className="text-white/50 mt-1">Write, reflect, and grow with AI-powered guidance</p>
           </div>
           <div className="flex items-center gap-2">
-            {offline && (
+            {!isOnline() && (
               <Badge variant="warning" size="sm">
                 <AlertCircle className="w-3 h-3" /> Offline
               </Badge>
@@ -225,8 +227,8 @@ export default function JournalPage() {
             ) : entries.length === 0 ? (
               <p className="text-sm text-white/40 text-center py-6">No entries yet. Start writing!</p>
             ) : (
-              <div className="space-y-2">
-                {entries.slice(0, 5).map((entry) => (
+              <div className="space-y-2 max-h-[400px] overflow-y-auto scrollbar-thin">
+                {entries.slice(0, 10).map((entry) => (
                   <div
                     key={entry._id}
                     className="p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 cursor-pointer transition-all"

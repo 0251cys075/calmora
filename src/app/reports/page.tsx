@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { motion } from "framer-motion"
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import {
   FileText, TrendingUp, TrendingDown,
   Download, Calendar, Smile, Activity,
@@ -13,18 +13,131 @@ import {
   ArrowDown, Sparkles
 } from "lucide-react"
 
+interface MoodEntry {
+  mood: number
+  note: string
+  date: string
+}
+
+interface JournalEntry {
+  _id: string
+  title: string
+  content: string
+  mood?: number
+  tags?: string[]
+  date: string
+}
+
+interface HabitData {
+  _id?: string
+  name: string
+  logs: { date: string; completed: boolean }[]
+  streak?: number
+}
+
+function loadFromStorage<T>(key: string, fallback: T): T {
+  if (typeof window === "undefined") return fallback
+  try {
+    const raw = localStorage.getItem(key)
+    return raw ? JSON.parse(raw) : fallback
+  } catch {
+    return fallback
+  }
+}
+
+function getLast7Days(): string[] {
+  const days: string[] = []
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date()
+    d.setDate(d.getDate() - i)
+    days.push(d.toLocaleDateString("en-US", { weekday: "short" }))
+  }
+  return days
+}
+
+function getDayKey(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString("en-US", { weekday: "short" })
+}
+
 export default function ReportsPage() {
   const [activePeriod, setActivePeriod] = useState<"weekly" | "monthly">("weekly")
 
-  const weeklyData = [
-    { day: "Mon", mood: 4, habits: 80, journal: true, score: 75 },
-    { day: "Tue", mood: 3, habits: 60, journal: true, score: 68 },
-    { day: "Wed", mood: 5, habits: 100, journal: false, score: 82 },
-    { day: "Thu", mood: 4, habits: 80, journal: true, score: 78 },
-    { day: "Fri", mood: 3, habits: 60, journal: false, score: 65 },
-    { day: "Sat", mood: 4, habits: 80, journal: true, score: 85 },
-    { day: "Sun", mood: 5, habits: 100, journal: true, score: 92 },
-  ]
+  const stats = useMemo(() => {
+    const moodEntries: MoodEntry[] = loadFromStorage("calmora_mood_entries", [])
+    const habits: HabitData[] = loadFromStorage("calmora_habits", [])
+    const journalEntries: JournalEntry[] = loadFromStorage("calmora_journal_entries", [])
+    const weeklyMood: number[] = loadFromStorage("calmora_weekly_mood", [3, 4, 2, 5, 4, 3, 3])
+
+    const avgMood = moodEntries.length
+      ? moodEntries.reduce((s, e) => s + e.mood, 0) / moodEntries.length
+      : weeklyMood.reduce((s, m) => s + m, 0) / weeklyMood.length
+
+    const totalHabits = habits.length || 6
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const todayTime = today.getTime()
+    let habitsCompletedToday = 0
+    habits.forEach((h) => {
+      const hasLog = (h.logs || []).some((l) => new Date(l.date).setHours(0, 0, 0, 0) === todayTime && l.completed)
+      if (hasLog) habitsCompletedToday++
+    })
+    const habitScore = totalHabits ? Math.round((habitsCompletedToday / totalHabits) * 100) : 80
+
+    const last7Days = getLast7Days()
+
+    const dailyMood = last7Days.map((dayName) => {
+      const entriesOnDay = moodEntries.filter((e) => getDayKey(e.date) === dayName)
+      if (entriesOnDay.length) {
+        return entriesOnDay.reduce((s, e) => s + e.mood, 0) / entriesOnDay.length
+      }
+      const weeklyIndex = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(dayName)
+      return weeklyMood[weeklyIndex] || 3
+    })
+
+    const dailyHabits = last7Days.map((dayName, di) => {
+      const dayDate = new Date()
+      dayDate.setDate(dayDate.getDate() - (6 - di))
+      const dayStart = new Date(dayDate)
+      dayStart.setHours(0, 0, 0, 0)
+      const dayEnd = new Date(dayStart)
+      dayEnd.setHours(23, 59, 59, 999)
+
+      const completed = habits.filter((h) =>
+        (h.logs || []).some((l) => {
+          const ld = new Date(l.date)
+          return ld >= dayStart && ld <= dayEnd && l.completed
+        })
+      ).length
+      return totalHabits ? Math.round((completed / totalHabits) * 100) : 80
+    })
+
+    const journalDays = last7Days.map((dayName) => {
+      return journalEntries.filter((e) => getDayKey(e.date) === dayName).length > 0
+    })
+
+    const journalCount = journalDays.filter(Boolean).length
+    const calmScore = Math.round((avgMood / 5) * 40 + (habitScore / 100) * 30 + (journalCount / 7) * 30)
+
+    const avgMoodFormatted = avgMood.toFixed(1)
+
+    return {
+      avgMood: avgMoodFormatted,
+      habitScore: `${habitScore}%`,
+      journalCount: `${journalCount}/7`,
+      calmScore,
+      dailyMood,
+      dailyHabits,
+      weeklyData: last7Days.map((day, i) => ({
+        day,
+        mood: Math.round(dailyMood[i]),
+        habits: dailyHabits[i],
+        journal: journalDays[i],
+        score: Math.round((dailyMood[i] / 5) * 40 + (dailyHabits[i] / 100) * 30 + (journalDays[i] ? 30 : 0)),
+      })),
+    }
+  }, [])
+
+  const weeklyData = stats.weeklyData
 
   return (
     <div className="space-y-6">
@@ -70,10 +183,10 @@ export default function ReportsPage() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Avg Mood", value: "4.0", change: "+0.5", icon: Smile, color: "text-amber-400", up: true },
-          { label: "Habit Score", value: "82%", change: "+12%", icon: Activity, color: "text-emerald-400", up: true },
-          { label: "Journal Days", value: "5/7", change: "+2", icon: BookOpen, color: "text-blue-400", up: true },
-          { label: "Calm Score", value: "78", change: "+8", icon: Brain, color: "text-purple-400", up: true },
+          { label: "Avg Mood", value: stats.avgMood, change: "+0.5", icon: Smile, color: "text-amber-400", up: true },
+          { label: "Habit Score", value: stats.habitScore, change: "+12%", icon: Activity, color: "text-emerald-400", up: true },
+          { label: "Journal Days", value: stats.journalCount, change: "+2", icon: BookOpen, color: "text-blue-400", up: true },
+          { label: "Calm Score", value: String(stats.calmScore), change: "+8", icon: Brain, color: "text-purple-400", up: true },
         ].map((stat) => {
           const Icon = stat.icon
           return (
