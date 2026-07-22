@@ -4,12 +4,14 @@ import { GlassCard } from "@/components/ui/glass-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { motion } from "framer-motion"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   BookOpen, Sparkles, Heart, Target,
-  Sun, Moon, Send, Brain, Lightbulb,
-  Download, Clock, Quote
+  Send, Brain, Lightbulb,
+  Clock, AlertCircle
 } from "lucide-react"
+import { journalApi, withFallback, isOnline, type JournalEntry } from "@/lib/api"
+import { useLocalStorage } from "@/lib/hooks/useLocalStorage"
 
 const prompts = [
   "What are three things you're grateful for today?",
@@ -19,16 +21,83 @@ const prompts = [
   "What emotion dominated your day, and why?",
 ]
 
-const entries = [
-  { date: "Today", title: "Finding Peace in the Morning", mood: "😊", preview: "Woke up early today and decided to watch the sunrise..." },
-  { date: "Yesterday", title: "Overcoming Anxiety", mood: "🙂", preview: "Had a stressful meeting but used breathing techniques..." },
-  { date: "2 days ago", title: "Gratitude Practice", mood: "😊", preview: "Started my gratitude journal and felt immediately..." },
-]
-
 export default function JournalPage() {
   const [activePrompt, setActivePrompt] = useState(0)
   const [journalEntry, setJournalEntry] = useState("")
   const [showPrompts, setShowPrompts] = useState(true)
+  const [entries, setEntries] = useLocalStorage<JournalEntry[]>("calmora_journal_entries", [])
+  const [summary, setSummary] = useLocalStorage("calmora_journal_summary", {
+    totalEntries: 0, avgMood: 0, topTopic: "None", gratitudeCount: 0,
+  })
+  const [saving, setSaving] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [offline, setOffline] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!isOnline()) {
+      setOffline(true)
+      setLoading(false)
+      return
+    }
+    Promise.all([
+      withFallback(() => journalApi.list(), { entries: [] }),
+      withFallback(() => journalApi.summary(), {
+        summary: { totalEntries: 0, avgMood: 0, topTopic: "None", gratitudeCount: 0 },
+      }),
+    ]).then(([entriesRes, summaryRes]) => {
+      if (entriesRes.entries.length) setEntries(entriesRes.entries)
+      setSummary(summaryRes.summary)
+      setOffline(false)
+    }).catch(() => setOffline(true)).finally(() => setLoading(false))
+  }, [])
+
+  const handleSave = async () => {
+    if (!journalEntry.trim()) return
+    setSaving(true)
+    setSaveError(null)
+    const entryData = { content: journalEntry, title: journalEntry.split("\n")[0].slice(0, 60) }
+
+    if (!isOnline()) {
+      const localEntry: JournalEntry = {
+        _id: `local_${Date.now()}`,
+        title: entryData.title,
+        content: journalEntry,
+        date: new Date().toISOString(),
+      }
+      setEntries((prev) => [localEntry, ...prev])
+      setSummary((prev) => ({ ...prev, totalEntries: prev.totalEntries + 1 }))
+      setJournalEntry("")
+      setSaving(false)
+      return
+    }
+
+    try {
+      const { entry } = await journalApi.create(entryData)
+      setEntries((prev) => [entry, ...prev])
+      setSummary((prev) => ({ ...prev, totalEntries: prev.totalEntries + 1 }))
+      setJournalEntry("")
+    } catch {
+      setSaveError("Failed to save. Saved offline instead.")
+      const localEntry: JournalEntry = {
+        _id: `local_${Date.now()}`,
+        title: entryData.title,
+        content: journalEntry,
+        date: new Date().toISOString(),
+      }
+      setEntries((prev) => [localEntry, ...prev])
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const getMoodEmoji = (mood?: number) => {
+    if (!mood) return ""
+    if (mood >= 4) return "😊"
+    if (mood >= 3) return "🙂"
+    if (mood >= 2) return "😐"
+    return "😔"
+  }
 
   return (
     <div className="space-y-6">
@@ -38,10 +107,13 @@ export default function JournalPage() {
             <h1 className="text-3xl font-bold text-white">AI Journal</h1>
             <p className="text-white/50 mt-1">Write, reflect, and grow with AI-powered guidance</p>
           </div>
-          <Badge variant="info" size="md">
-            <Sparkles className="w-3.5 h-3.5" />
-            3 day streak
-          </Badge>
+          <div className="flex items-center gap-2">
+            {offline && (
+              <Badge variant="warning" size="sm">
+                <AlertCircle className="w-3 h-3" /> Offline
+              </Badge>
+            )}
+          </div>
         </div>
       </motion.div>
 
@@ -98,18 +170,24 @@ export default function JournalPage() {
               className="w-full h-48 p-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 resize-none text-sm"
             />
 
+            {saveError && (
+              <p className="text-xs text-amber-400 mt-2">{saveError}</p>
+            )}
+
             <div className="flex items-center justify-between mt-4">
               <div className="flex gap-2">
                 <Button variant="glass" size="sm" icon={<Heart className="w-4 h-4" />}>Gratitude</Button>
                 <Button variant="glass" size="sm" icon={<Target className="w-4 h-4" />}>Goals</Button>
               </div>
-              <Button icon={<Send className="w-4 h-4" />}>Save Entry</Button>
+              <Button onClick={handleSave} icon={<Send className="w-4 h-4" />} loading={saving}>
+                Save Entry
+              </Button>
             </div>
           </GlassCard>
 
           <GlassCard>
             <h2 className="text-lg font-semibold text-white mb-3">AI Insights</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="p-3 rounded-xl bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20">
                 <p className="text-xs text-amber-400 mb-1">Emotional Analysis</p>
                 <p className="text-sm text-white/80">Positive tone with hints of anxiety. Consider a breathing exercise.</p>
@@ -134,30 +212,46 @@ export default function JournalPage() {
         >
           <GlassCard>
             <h2 className="text-lg font-semibold text-white mb-3">Recent Entries</h2>
-            <div className="space-y-2">
-              {entries.map((entry) => (
-                <div
-                  key={entry.title}
-                  className="p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 cursor-pointer transition-all"
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-white/40">{entry.date}</span>
-                    <span>{entry.mood}</span>
+            {loading ? (
+              <div className="space-y-2">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="p-3 rounded-xl bg-white/5 animate-pulse border border-white/10">
+                    <div className="h-3 bg-white/10 rounded w-16 mb-2" />
+                    <div className="h-4 bg-white/10 rounded w-3/4 mb-1" />
+                    <div className="h-3 bg-white/10 rounded w-1/2" />
                   </div>
-                  <p className="text-sm font-medium text-white">{entry.title}</p>
-                  <p className="text-xs text-white/50 mt-1 line-clamp-1">{entry.preview}</p>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : entries.length === 0 ? (
+              <p className="text-sm text-white/40 text-center py-6">No entries yet. Start writing!</p>
+            ) : (
+              <div className="space-y-2">
+                {entries.slice(0, 5).map((entry) => (
+                  <div
+                    key={entry._id}
+                    className="p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 cursor-pointer transition-all"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs text-white/40">
+                        {new Date(entry.date).toLocaleDateString()}
+                      </span>
+                      <span>{getMoodEmoji(entry.mood)}</span>
+                    </div>
+                    <p className="text-sm font-medium text-white truncate">{entry.title || "Untitled"}</p>
+                    <p className="text-xs text-white/50 mt-1 line-clamp-1">{entry.content}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </GlassCard>
 
           <GlassCard>
             <h3 className="text-sm font-semibold text-white mb-3">This Week's Summary</h3>
             <div className="space-y-2 text-sm text-white/60">
-              <p>• 5 entries written</p>
-              <p>• Average mood: 😊 Good</p>
-              <p>• Top topic: Gratitude</p>
-              <p>• Gratitude mentions: 12</p>
+              <p>• {summary.totalEntries} entries written</p>
+              <p>• Average mood: {summary.avgMood > 0 ? `${summary.avgMood}/5` : "N/A"}</p>
+              <p>• Top topic: {summary.topTopic}</p>
+              <p>• Gratitude mentions: {summary.gratitudeCount}</p>
             </div>
           </GlassCard>
         </motion.div>

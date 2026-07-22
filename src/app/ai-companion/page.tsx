@@ -1,18 +1,16 @@
 "use client"
 
 import { GlassCard } from "@/components/ui/glass-card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Tabs } from "@/components/ui/tabs"
 import { motion } from "framer-motion"
 import { useState, useRef, useEffect } from "react"
 import {
   Bot, Send, Heart, Brain, Sparkles,
   MessageCircle, Headphones, BookOpen,
   Target, GraduationCap, Lightbulb, User,
-  ChevronRight, Mic, StopCircle, Volume2,
-  Activity, Wind
+  ChevronRight, Activity, Wind, AlertCircle
 } from "lucide-react"
+import { isOnline } from "@/lib/api"
 
 const modes = [
   { id: "listener", label: "Listener", icon: Heart, color: "text-rose-400", gradient: "from-rose-500 to-pink-500" },
@@ -45,33 +43,67 @@ export default function AICompanionPage() {
   ])
   const [input, setInput] = useState("")
   const [isTyping, setIsTyping] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const chatEndRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim()) return
-    setMessages((prev) => [...prev, { role: "user", content: input }])
+    const userMessage = input.trim()
+    setMessages((prev) => [...prev, { role: "user", content: userMessage }])
     setInput("")
     setIsTyping(true)
+    setError(null)
 
-    setTimeout(() => {
-      const modeObj = modes.find((m) => m.id === activeMode)
-      const responses: Record<string, string> = {
-        listener: "I hear you. It sounds like you're going through something real. Take a deep breath with me. You're not alone in this. What specifically has been weighing on your mind?",
-        coach: "Great question! Let's break this down into actionable steps. First, identify one small thing you can do right now. Progress starts with a single step. What's the smallest action you can take?",
-        motivation: "Remember why you started. You have strength you haven't even discovered yet. Every day is a new opportunity to become the best version of yourself. You've got this!",
-        cbt: "Let's apply some CBT techniques. Can you identify the automatic thought that came up? What evidence supports it, and what evidence challenges it? Let's work through this together.",
-        meditation: "Let's take a moment to breathe together. Find a comfortable position. Breathe in slowly through your nose for 4 counts, hold for 4, and exhale for 6. Feel the calm spreading through your body.",
-        productivity: "Let's optimize your workflow. Have you tried time-blocking? Set aside specific periods for focused work. Break tasks into 25-minute Pomodoro sessions. What's your biggest productivity challenge?",
-        student: "As your student mentor, I understand the academic pressure. Let's create a study plan that works for you. What subject are you focusing on, and when is your next deadline?",
+    if (!isOnline()) {
+      setTimeout(() => {
+        setMessages((prev) => [...prev, {
+          role: "assistant",
+          content: "I notice you're offline. I'll respond with what I can. How are you feeling right now?",
+          emotion: "caring",
+        }])
+        setIsTyping(false)
+      }, 800)
+      return
+    }
+
+    try {
+      const history = messages.slice(-10).map((m) => ({ role: m.role, content: m.content }))
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userMessage, mode: activeMode, history }),
+      })
+      if (!res.ok) throw new Error("API request failed")
+      const data = await res.json()
+      setMessages((prev) => [...prev, { role: "assistant", content: data.reply, emotion: "caring" }])
+    } catch {
+      const fallbacks: Record<string, string> = {
+        listener: "I'm here to listen. Tell me more about what's on your mind.",
+        coach: "Let's work on this together. What's one small step you can take today?",
+        motivation: "You have strength you haven't discovered yet. Keep going!",
+        cbt: "Let's try a thought-challenging exercise. What automatic thought came up?",
+        meditation: "Take a deep breath with me. Breathe in... hold... and release slowly.",
+        productivity: "Let's find a sustainable approach. Have you tried time-blocking?",
+        student: "I understand the academic pressure. Let's create a manageable plan.",
       }
-      const response = responses[activeMode] || responses.listener
-      setMessages((prev) => [...prev, { role: "assistant", content: response, emotion: "caring" }])
+      const reply = fallbacks[activeMode] || fallbacks.listener
+      setMessages((prev) => [...prev, { role: "assistant", content: reply, emotion: "caring" }])
+      setError("Couldn't reach AI service. Used offline fallback.")
+    } finally {
       setIsTyping(false)
-    }, 1500)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault()
+      handleSend()
+    }
   }
 
   const activeModeData = modes.find((m) => m.id === activeMode)
@@ -85,14 +117,14 @@ export default function AICompanionPage() {
       </motion.div>
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
+        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin -mx-4 px-4">
           {modes.map((mode) => {
             const ModeIcon = mode.icon
             return (
               <button
                 key={mode.id}
                 onClick={() => setActiveMode(mode.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl whitespace-nowrap transition-all duration-200 border ${
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl whitespace-nowrap transition-all duration-200 border flex-shrink-0 ${
                   activeMode === mode.id
                     ? `bg-gradient-to-r ${mode.gradient} text-white border-transparent shadow-lg`
                     : "bg-white/5 text-white/60 border-white/10 hover:bg-white/10"
@@ -106,6 +138,13 @@ export default function AICompanionPage() {
         </div>
       </motion.div>
 
+      {error && (
+        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-2 text-sm text-amber-400">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          {error}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -115,10 +154,10 @@ export default function AICompanionPage() {
         >
           <GlassCard className="h-[600px] flex flex-col">
             <div className="flex items-center gap-3 pb-4 border-b border-white/10">
-              <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${activeModeData?.gradient} flex items-center justify-center`}>
+              <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${activeModeData?.gradient} flex items-center justify-center flex-shrink-0`}>
                 <Icon className="w-5 h-5 text-white" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm font-medium text-white capitalize">{activeModeData?.label || "Listener"}</p>
                 <div className="flex items-center gap-1.5">
                   <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -131,13 +170,13 @@ export default function AICompanionPage() {
               {messages.map((msg, i) => (
                 <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                   <div
-                    className={`max-w-[80%] p-3 rounded-2xl ${
+                    className={`max-w-[85%] sm:max-w-[75%] p-3 rounded-2xl ${
                       msg.role === "user"
                         ? "bg-gradient-to-r from-blue-500/30 to-cyan-500/30 border border-blue-500/20"
                         : "bg-white/5 border border-white/10"
                     }`}
                   >
-                    <p className="text-sm text-white/90">{msg.content}</p>
+                    <p className="text-sm text-white/90 whitespace-pre-wrap">{msg.content}</p>
                   </div>
                 </div>
               ))}
@@ -160,7 +199,7 @@ export default function AICompanionPage() {
                 {suggestions.map((s, i) => (
                   <button
                     key={i}
-                    onClick={() => { setInput(s); handleSend() }}
+                    onClick={() => { setInput(s); if (textareaRef.current) textareaRef.current.focus() }}
                     className="text-xs px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-white/50 hover:text-white hover:bg-white/10 transition-all"
                   >
                     {s}
@@ -168,15 +207,17 @@ export default function AICompanionPage() {
                 ))}
               </div>
               <div className="flex gap-2">
-                <input
-                  type="text"
+                <textarea
+                  ref={textareaRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                  onKeyDown={handleKeyDown}
                   placeholder="Type your message..."
-                  className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 transition-all text-sm"
+                  rows={1}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 transition-all text-sm resize-none"
+                  style={{ minHeight: "42px", maxHeight: "120px" }}
                 />
-                <Button onClick={handleSend} icon={<Send className="w-4 h-4" />}>
+                <Button onClick={handleSend} icon={<Send className="w-4 h-4" />} disabled={!input.trim() || isTyping}>
                   Send
                 </Button>
               </div>

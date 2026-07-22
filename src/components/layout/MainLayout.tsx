@@ -3,8 +3,36 @@
 import { Sidebar } from "./Sidebar"
 import { ThemeProvider } from "next-themes"
 import { motion } from "framer-motion"
+import { usePathname, useRouter } from "next/navigation"
+import { useEffect } from "react"
+import { useAuth } from "@/lib/hooks/useAuth"
+
+const protectedRoutes = ["/journal", "/habits", "/profile", "/reports", "/challenges", "/community", "/student", "/learn", "/ai-companion", "/relax"]
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
+  const router = useRouter()
+  const { user, loading, isAuthenticated } = useAuth()
+
+  useEffect(() => {
+    if (loading) return
+    const isProtected = protectedRoutes.some((route) => pathname.startsWith(route))
+    if (isProtected && !isAuthenticated) {
+      router.push("/auth")
+    }
+  }, [pathname, loading, isAuthenticated, router])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 animate-pulse" />
+          <p className="text-white/40 text-sm">Loading Calmora...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
       <div className="min-h-screen bg-[#0a0f1e] text-white">
