@@ -8,11 +8,12 @@ import { motion } from "framer-motion"
 import { getDailyQuote } from "@/lib/data/quotes"
 import {
   Bot, BookOpen, ChartNoAxesColumn, Flower2,
-  Moon, Sparkles, TrendingUp, Sun, Zap,
-  Activity, Brain, Heart, Trophy, ArrowRight,
-  Wind, Smile, Coffee, MessageCircle
+  TrendingUp, Zap, Activity, Brain, Heart, Trophy, ArrowRight,
+  Wind, Smile
 } from "lucide-react"
 import Link from "next/link"
+import { useAuth } from "@/lib/hooks/useAuth"
+import { LandingPage } from "@/components/landing/LandingPage"
 
 const container = {
   hidden: { opacity: 0 },
@@ -27,8 +28,25 @@ const item = {
   show: { opacity: 1, y: 0 },
 }
 
-export default function Dashboard() {
+export default function Home() {
+  const { user, isAuthenticated, loading } = useAuth()
   const quote = getDailyQuote()
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 animate-pulse" />
+          <p className="text-white/40 text-sm">Loading Calmora...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // If user is NOT authenticated, display the Benefits Landing Page with Sign Up / Login CTAs!
+  if (!isAuthenticated) {
+    return <LandingPage />
+  }
 
   const quickActions = [
     { href: "/ai-companion", label: "AI Chat", icon: Bot, color: "from-purple-500 to-indigo-500", desc: "Talk to your AI companion" },
@@ -45,13 +63,13 @@ export default function Dashboard() {
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
       <motion.div variants={item} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">Welcome back</h1>
-          <p className="text-white/50 mt-1">Here's your wellness overview</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">Welcome back, {user?.name || "Friend"}!</h1>
+          <p className="text-white/50 mt-1 text-sm sm:text-base">Here's your wellness overview</p>
         </div>
         <div className="flex items-center gap-3">
           <Badge variant="premium" size="md">
             <Trophy className="w-3.5 h-3.5" />
-            Level 8
+            Level {user?.level || 8}
           </Badge>
           <Badge variant="success" size="md">
             <Zap className="w-3.5 h-3.5" />
@@ -65,22 +83,22 @@ export default function Dashboard() {
           <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-cyan-500/5 to-transparent" />
           <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl" />
           <div className="relative z-10">
-            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div className="flex items-start justify-between">
               <div className="space-y-4 max-w-2xl">
                 <div className="flex items-center gap-2">
-                  <Heart className="w-5 h-5 text-rose-400 flex-shrink-0" />
+                  <Heart className="w-5 h-5 text-rose-400" />
                   <span className="text-white/60 text-sm">Daily Inspiration</span>
                 </div>
-                <p className="text-lg sm:text-xl md:text-2xl font-medium text-white/90 leading-relaxed">
+                <p className="text-xl md:text-2xl font-medium text-white/90 leading-relaxed">
                   &ldquo;{quote.text}&rdquo;
                 </p>
                 <p className="text-white/40">— {quote.author}</p>
               </div>
-              <div className="flex sm:flex-col items-center gap-2 sm:self-end">
-                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/25 flex-shrink-0">
-                  <Brain className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
+              <div className="hidden md:flex flex-col items-center gap-2">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/25">
+                  <Brain className="w-8 h-8 text-white" />
                 </div>
-                <span className="text-lg font-bold text-gradient">850</span>
+                <span className="text-lg font-bold text-gradient">{user?.calmScore || 850}</span>
                 <span className="text-xs text-white/40">Calm Score</span>
               </div>
             </div>
@@ -89,18 +107,18 @@ export default function Dashboard() {
       </motion.div>
 
       <motion.div variants={item}>
-        <h2 className="text-lg font-semibold text-white mb-3">Quick Access</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <h2 className="text-lg font-semibold text-white mb-3">Quick Access Features</h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           {quickActions.map((action) => {
             const Icon = action.icon
             return (
               <Link key={action.href} href={action.href}>
-                <GlassCard className="text-center p-3 sm:p-4 h-full">
-                  <div className={`w-9 h-9 sm:w-10 sm:h-10 mx-auto rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center mb-2 shadow-lg`}>
-                    <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                <GlassCard className="text-center p-4 h-full hover:border-white/20 transition-all">
+                  <div className={`w-10 h-10 mx-auto rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center mb-2 shadow-lg`}>
+                    <Icon className="w-5 h-5 text-white" />
                   </div>
                   <p className="text-sm font-medium text-white">{action.label}</p>
-                  <p className="text-[10px] text-white/40 mt-0.5 truncate">{action.desc}</p>
+                  <p className="text-[10px] text-white/40 mt-0.5">{action.desc}</p>
                 </GlassCard>
               </Link>
             )
@@ -108,7 +126,7 @@ export default function Dashboard() {
         </div>
       </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <motion.div variants={item} className="lg:col-span-2">
           <GlassCard>
             <div className="flex items-center justify-between mb-4">
@@ -128,7 +146,7 @@ export default function Dashboard() {
                     className="w-full rounded-lg bg-gradient-to-t from-blue-500/50 to-cyan-500/30 relative group cursor-pointer"
                     style={{ minHeight: 0 }}
                   >
-                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs text-white/60 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs text-white/60 opacity-0 group-hover:opacity-100 transition-opacity">
                       {value}%
                     </div>
                   </motion.div>
@@ -144,12 +162,12 @@ export default function Dashboard() {
             <h2 className="text-lg font-semibold text-white mb-4">Today's Challenge</h2>
             <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center flex-shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
                   <Flower2 className="w-5 h-5 text-white" />
                 </div>
-                <div className="min-w-0">
+                <div>
                   <p className="text-sm font-medium text-white">Morning Gratitude</p>
-                  <p className="text-xs text-white/40 truncate">Write 3 things you're grateful for</p>
+                  <p className="text-xs text-white/40">Write 3 things you're grateful for</p>
                 </div>
               </div>
               <Progress value={33} size="sm" variant="gradient" />
@@ -167,7 +185,7 @@ export default function Dashboard() {
       <motion.div variants={item}>
         <GlassCard>
           <h2 className="text-lg font-semibold text-white mb-4">Activity Overview</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
               { label: "Mood Entries", value: "12", change: "+3", icon: Smile, color: "text-amber-400" },
               { label: "Habits Done", value: "8/10", change: "80%", icon: Activity, color: "text-emerald-400" },
