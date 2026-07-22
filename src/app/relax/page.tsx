@@ -13,11 +13,11 @@ import {
 } from "lucide-react"
 
 const soundUrls: Record<string, string> = {
-  rain: "https://assets.mixkit.co/active_storage/sfx/2433/2433-84.wav",
-  ocean: "https://assets.mixkit.co/active_storage/sfx/2437/2437-84.wav",
-  fire: "https://assets.mixkit.co/active_storage/sfx/2432/2432-84.wav",
-  forest: "https://assets.mixkit.co/active_storage/sfx/2438/2438-84.wav",
-  night: "https://assets.mixkit.co/active_storage/sfx/2436/2436-84.wav",
+  rain: "https://actions.google.com/sounds/v1/weather/rain_and_thunder.ogg",
+  ocean: "https://actions.google.com/sounds/v1/water/ocean_waves.ogg",
+  fire: "https://actions.google.com/sounds/v1/fire/fire_crackling.ogg",
+  forest: "https://actions.google.com/sounds/v1/ambiences/forest_ambience.ogg",
+  night: "https://actions.google.com/sounds/v1/ambiences/night_ambience.ogg",
   lofi: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
 }
 
@@ -34,12 +34,15 @@ export default function RelaxPage() {
   const [activeTab, setActiveTab] = useState("breathing")
   const [activeSound, setActiveSound] = useState<string | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [audioError, setAudioError] = useState<string | null>(null)
   const [breathPhase, setBreathPhase] = useState<"in" | "hold" | "out" | "idle">("idle")
   const [timer, setTimer] = useState(25 * 60)
   const [pomodoroActive, setPomodoroActive] = useState(false)
-  const [pomodoroMode, setPomodoroMode] = useState<"focus" | "break">("focus")
+  const [pomodoroMode, setPomodoroMode] = useState<"focus" | "break" | "longBreak">("focus")
+  const [sessionCount, setSessionCount] = useState(0)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const breathInterval = useRef<ReturnType<typeof setInterval> | null>(null)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     if (breathPhase !== "idle") {
@@ -56,12 +59,35 @@ export default function RelaxPage() {
   }, [breathPhase !== "idle"])
 
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval>
     if (pomodoroActive && timer > 0) {
-      interval = setInterval(() => setTimer((t) => t - 1), 1000)
+      timerRef.current = setInterval(() => {
+        setTimer((t) => t - 1)
+      }, 1000)
     }
-    return () => clearInterval(interval)
-  }, [pomodoroActive, timer])
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
+  }, [pomodoroActive])
+
+  useEffect(() => {
+    if (timer === 0 && pomodoroActive) {
+      setPomodoroActive(false)
+      if (pomodoroMode === "focus") {
+        const newCount = sessionCount + 1
+        setSessionCount(newCount)
+        if (newCount % 4 === 0) {
+          setPomodoroMode("longBreak")
+          setTimer(15 * 60)
+        } else {
+          setPomodoroMode("break")
+          setTimer(5 * 60)
+        }
+      } else {
+        setPomodoroMode("focus")
+        setTimer(25 * 60)
+      }
+    }
+  }, [timer])
 
   useEffect(() => {
     return () => {
@@ -72,9 +98,13 @@ export default function RelaxPage() {
     }
   }, [])
 
-  const handleSoundToggle = (soundId: string) => {
+  const handleSoundToggle = async (soundId: string) => {
+    setAudioError(null)
+
     if (activeSound === soundId && isPlaying) {
-      audioRef.current?.pause()
+      if (audioRef.current) {
+        audioRef.current.pause()
+      }
       setIsPlaying(false)
       setActiveSound(null)
       return
@@ -86,29 +116,34 @@ export default function RelaxPage() {
     }
 
     const url = soundUrls[soundId]
-    if (!url) return
-
-    const audio = new Audio(url)
-    audio.loop = true
-    audio.volume = 0.5
-    audio.play().catch(() => {})
-    audioRef.current = audio
-    setActiveSound(soundId)
-    setIsPlaying(true)
-  }
-
-  useEffect(() => {
-    if (timer === 0 && pomodoroActive) {
-      setPomodoroActive(false)
-      if (pomodoroMode === "focus") {
-        setPomodoroMode("break")
-        setTimer(5 * 60)
-      } else {
-        setPomodoroMode("focus")
-        setTimer(25 * 60)
-      }
+    if (!url) {
+      setAudioError("Audio source not available")
+      return
     }
-  }, [timer, pomodoroActive, pomodoroMode])
+
+    try {
+      const audio = new Audio(url)
+      audio.loop = true
+      audio.volume = 0.6
+      audio.onerror = () => {
+        setAudioError(`Failed to load audio for ${sounds.find((s) => s.id === soundId)?.name || soundId}. Try a different sound.`)
+        setIsPlaying(false)
+        setActiveSound(null)
+      }
+      await audio.play()
+      audioRef.current = audio
+      setActiveSound(soundId)
+      setIsPlaying(true)
+    } catch (err) {
+      if (err instanceof Error && err.name === "NotAllowedError") {
+        setAudioError("Browser blocked autoplay. Tap again or interact with the page first.")
+      } else {
+        setAudioError("Could not play audio. Please try a different sound.")
+      }
+      setIsPlaying(false)
+      setActiveSound(null)
+    }
+  }
 
   const formatTimer = (seconds: number) => {
     const m = Math.floor(seconds / 60)
@@ -226,6 +261,11 @@ export default function RelaxPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
+          {audioError && (
+            <div className="mb-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-sm text-amber-400">
+              {audioError}
+            </div>
+          )}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             {sounds.map((sound) => {
               const SoundIcon = sound.icon
@@ -259,27 +299,14 @@ export default function RelaxPage() {
           transition={{ delay: 0.1 }}
         >
           <GlassCard className="text-center py-8 sm:py-12">
-            <div className="w-40 h-40 sm:w-48 sm:h-48 mx-auto rounded-full border-4 border-white/10 flex items-center justify-center mb-8 relative">
+            <div className="w-40 h-40 sm:w-48 sm:h-48 mx-auto rounded-full border-4 border-white/10 flex items-center justify-center mb-4 relative">
               <div className="absolute inset-2 rounded-full border border-white/5" />
               <svg className="absolute inset-0 w-full h-full -rotate-90">
+                <circle cx="50%" cy="50%" r="44%" fill="none" stroke="rgba(59,130,246,0.2)" strokeWidth="4" />
                 <circle
-                  cx="50%"
-                  cy="50%"
-                  r="44%"
-                  fill="none"
-                  stroke="rgba(59,130,246,0.2)"
-                  strokeWidth="4"
-                />
-                <circle
-                  cx="50%"
-                  cy="50%"
-                  r="44%"
-                  fill="none"
-                  stroke="url(#gradient)"
-                  strokeWidth="4"
-                  strokeLinecap="round"
+                  cx="50%" cy="50%" r="44%" fill="none" stroke="url(#gradient)" strokeWidth="4" strokeLinecap="round"
                   strokeDasharray={`${2 * Math.PI * 44}`}
-                  strokeDashoffset={`${2 * Math.PI * 44 * (1 - timer / (pomodoroMode === "focus" ? 25 * 60 : 5 * 60))}`}
+                  strokeDashoffset={`${2 * Math.PI * 44 * (1 - timer / getMaxTimer())}`}
                   className="transition-all duration-1000"
                 />
                 <defs>
@@ -291,33 +318,25 @@ export default function RelaxPage() {
               </svg>
               <div className="text-center">
                 <p className="text-3xl sm:text-4xl font-bold text-white">{formatTimer(timer)}</p>
-                <p className="text-xs text-white/40 mt-1 capitalize">{pomodoroMode} Time</p>
+                <p className="text-xs text-white/40 mt-1 capitalize">{pomodoroMode === "longBreak" ? "Long Break" : pomodoroMode} Time</p>
               </div>
+            </div>
+
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <Badge variant="info" size="sm">Session {sessionCount + 1}</Badge>
             </div>
 
             <div className="flex items-center justify-center gap-3">
               {pomodoroActive ? (
-                <Button
-                  size="lg"
-                  variant="secondary"
-                  onClick={() => setPomodoroActive(false)}
-                  icon={<Pause className="w-5 h-5" />}
-                >
+                <Button size="lg" variant="secondary" onClick={() => setPomodoroActive(false)} icon={<Pause className="w-5 h-5" />}>
                   Pause
                 </Button>
               ) : (
-                <Button
-                  size="lg"
-                  onClick={() => { setPomodoroActive(true); if (timer === 0) setTimer(pomodoroMode === "focus" ? 25 * 60 : 5 * 60) }}
-                  icon={<Play className="w-5 h-5" />}
-                >
-                  {timer === (pomodoroMode === "focus" ? 25 * 60 : 5 * 60) ? "Start Focus" : "Resume"}
+                <Button size="lg" onClick={() => { setPomodoroActive(true); if (timer === 0) setTimer(getMaxTimer()) }} icon={<Play className="w-5 h-5" />}>
+                  {timer === getMaxTimer() ? "Start Focus" : "Resume"}
                 </Button>
               )}
-              <Button
-                variant="ghost"
-                onClick={() => { setPomodoroActive(false); setPomodoroMode("focus"); setTimer(25 * 60) }}
-              >
+              <Button variant="ghost" onClick={() => { setPomodoroActive(false); setPomodoroMode("focus"); setTimer(25 * 60); setSessionCount(0) }}>
                 Reset
               </Button>
             </div>
@@ -332,7 +351,7 @@ export default function RelaxPage() {
                   key={preset.label}
                   onClick={() => { setPomodoroActive(false); setPomodoroMode("focus"); setTimer(preset.seconds) }}
                   className={`text-sm transition-all ${
-                    timer === preset.seconds && !pomodoroActive
+                    timer === preset.seconds && !pomodoroActive && pomodoroMode === "focus"
                       ? "text-white font-medium border-b-2 border-blue-500 pb-0.5"
                       : "text-white/40 hover:text-white"
                   }`}
@@ -346,4 +365,10 @@ export default function RelaxPage() {
       )}
     </div>
   )
+
+  function getMaxTimer() {
+    if (pomodoroMode === "longBreak") return 15 * 60
+    if (pomodoroMode === "break") return 5 * 60
+    return 25 * 60
+  }
 }
