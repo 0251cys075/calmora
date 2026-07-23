@@ -67,7 +67,7 @@ function EmergencyFAB() {
       <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
       </svg>
-      <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-white animate-ping" />
+      <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-white animate-ping-gentle" />
     </a>
   )
 }

@@ -89,6 +89,7 @@ export default function LearnPage() {
   const [audioCurrentTime, setAudioCurrentTime] = useState(0)
   const [audioVolume, setAudioVolume] = useState(1)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const lastUrlRef = useRef<string | null>(null)
 
   const content = getContentByCategory(activeCategory)
 
@@ -101,16 +102,35 @@ export default function LearnPage() {
     }
   }, [])
 
-  const handlePlay = (item: ContentItem) => {
+  const initAudio = (url: string) => {
     if (audioRef.current) {
       audioRef.current.pause()
       audioRef.current = null
     }
+    const audio = new Audio(url)
+    audio.addEventListener("timeupdate", () => {
+      setAudioCurrentTime(audio.currentTime)
+      setAudioProgress(audio.duration ? (audio.currentTime / audio.duration) * 100 : 0)
+    })
+    audio.addEventListener("loadedmetadata", () => {
+      setAudioDuration(audio.duration)
+    })
+    audio.addEventListener("ended", () => {
+      setAudioPlaying(false)
+      setAudioProgress(0)
+      setAudioCurrentTime(0)
+    })
+    audioRef.current = audio
+    lastUrlRef.current = url
+  }
+
+  const handlePlay = (item: ContentItem) => {
     setAudioPlaying(false)
     setAudioProgress(0)
     setAudioCurrentTime(0)
     setAudioDuration(0)
     if (item.type === "video") {
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null }
       const embedUrl = videoEmbeds[item.id]
       if (embedUrl) {
         setActiveVideoUrl(embedUrl)
@@ -119,6 +139,7 @@ export default function LearnPage() {
         setActiveArticle(null)
       }
     } else if (item.type === "article") {
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null }
       const article = articleContents[item.id]
       if (article) {
         setActiveArticle(article)
@@ -132,6 +153,9 @@ export default function LearnPage() {
         setActivePodcastTitle(item.title)
         setActiveArticle(null)
         setActiveVideoUrl(null)
+        initAudio(url)
+        audioRef.current?.play().catch(() => {})
+        setAudioPlaying(true)
       }
     }
   }
@@ -142,23 +166,10 @@ export default function LearnPage() {
       audioRef.current?.pause()
       setAudioPlaying(false)
     } else {
-      if (!audioRef.current) {
-        const audio = new Audio(activePodcastUrl)
-        audio.addEventListener("timeupdate", () => {
-          setAudioCurrentTime(audio.currentTime)
-          setAudioProgress(audio.duration ? (audio.currentTime / audio.duration) * 100 : 0)
-        })
-        audio.addEventListener("loadedmetadata", () => {
-          setAudioDuration(audio.duration)
-        })
-        audio.addEventListener("ended", () => {
-          setAudioPlaying(false)
-          setAudioProgress(0)
-          setAudioCurrentTime(0)
-        })
-        audioRef.current = audio
+      if (!audioRef.current || lastUrlRef.current !== activePodcastUrl) {
+        initAudio(activePodcastUrl)
       }
-      audioRef.current.play().catch(() => {})
+      audioRef.current?.play().catch(() => {})
       setAudioPlaying(true)
     }
   }
@@ -300,7 +311,7 @@ export default function LearnPage() {
             <h3 className="font-semibold text-white text-sm mb-3">Continue Watching</h3>
             <div className="space-y-2">
               {content.slice(0, 2).map((item) => (
-                <div key={item.id} className="flex items-center gap-2 p-2 rounded-lg bg-white/5">
+                <div key={item.id} onClick={() => handlePlay(item)} className="flex items-center gap-2 p-2 rounded-lg bg-white/5 cursor-pointer hover:bg-white/10 transition-all">
                   <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
                     {typeIcons[item.type]}
                   </div>
@@ -322,11 +333,11 @@ export default function LearnPage() {
             <h3 className="font-semibold text-white text-sm mb-3">AI Recommended</h3>
             <div className="space-y-2">
               {[
-                { title: "Sleep meditation for tonight", icon: "🌙" },
-                { title: "Anxiety management techniques", icon: "🧠" },
-                { title: "Morning mindfulness routine", icon: "☀️" },
+                { title: "Sleep meditation for tonight", icon: "🌙", query: "sleep" },
+                { title: "Anxiety management techniques", icon: "🧠", query: "anxiety" },
+                { title: "Morning mindfulness routine", icon: "☀️", query: "mindfulness" },
               ].map((rec) => (
-                <div key={rec.title} className="flex items-center gap-2 p-2 rounded-lg bg-white/5 text-sm text-white/70 hover:bg-white/10 cursor-pointer transition-all">
+                <div key={rec.title} onClick={() => setActiveCategory(rec.query)} className="flex items-center gap-2 p-2 rounded-lg bg-white/5 text-sm text-white/70 hover:bg-white/10 cursor-pointer transition-all">
                   <span>{rec.icon}</span>
                   <span className="flex-1 text-xs">{rec.title}</span>
                   <ChevronRight className="w-3 h-3 text-white/30" />
