@@ -29,6 +29,15 @@ export function CommentSection({ postId, onCommentCountChange }: CommentSectionP
 
   useEffect(() => {
     loadComments()
+    return () => {
+      setComments([])
+      setNewComment("")
+      setReplyTo(null)
+      setReplyContent("")
+      setEditingId(null)
+      setEditContent("")
+      setShowReplies({})
+    }
   }, [postId])
 
   const loadComments = async () => {

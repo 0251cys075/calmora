@@ -22,25 +22,34 @@ export function SearchModal({ open, onClose }: SearchModalProps) {
   const debounceRef = useRef<number>(undefined)
 
   useEffect(() => {
-    if (!query || query.length < 2) {
-      setResults({})
-      setSuggestions({ users: [], hashtags: [] })
-      return
-    }
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = window.setTimeout(async () => {
+      if (!query || query.length < 2) {
+        setResults({})
+        setSuggestions({ users: [], hashtags: [] })
+        return
+      }
+      
       if (query.startsWith("#") || query.startsWith("@")) {
+        setSearching(true)
         try {
           const sug = await communityApi.getSuggestions(query.replace(/[@#]/, ""))
           setSuggestions(sug)
+          setResults({})
         } catch {}
+        finally {
+          setSearching(false)
+        }
       } else {
         setSearching(true)
         try {
           const res = await communityApi.search(query)
           setResults(res)
+          setSuggestions({ users: [], hashtags: [] })
         } catch {}
-        setSearching(false)
+        finally {
+          setSearching(false)
+        }
       }
     }, 300)
     return () => clearTimeout(debounceRef.current)

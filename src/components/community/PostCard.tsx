@@ -10,7 +10,7 @@ import {
   Edit3, Trash2, Flag, Pin, Link2, MoreHorizontal,
   ChevronDown, Check, X, Send,
 } from "lucide-react"
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import type { PostData } from "@/lib/community-api"
 import { communityApi } from "@/lib/community-api"
@@ -38,40 +38,58 @@ export function PostCard({ post, onUpdate, onDelete }: PostCardProps) {
   const [commentCount, setCommentCount] = useState(post.commentCount)
   const [pinned, setPinned] = useState(post.isPinned)
   const [loading, setLoading] = useState("")
+  const [videoError, setVideoError] = useState(false)
+  const [videoLoaded, setVideoLoaded] = useState(false)
 
   const isAuthor = user?.id === post.author?._id
 
+  useEffect(() => {
+    setVideoError(false)
+    setVideoLoaded(false)
+  }, [post._id])
+
   const handleLike = useCallback(async () => {
+    if (loading === "like") return
     setLoading("like")
     try {
       const res = await communityApi.likePost(post._id)
       setIsLiked(res.liked)
       setLikeCount(res.likeCount)
     } catch {}
-    setLoading("")
-  }, [post._id])
+    finally {
+      setLoading("")
+    }
+  }, [post._id, loading])
 
   const handleSave = useCallback(async () => {
+    if (loading === "save") return
     try {
       const res = await communityApi.savePost(post._id)
       setIsSaved(res.saved)
-    } catch {}
-  }, [post._id])
+    } catch {} finally {
+    }
+  }, [post._id, loading])
 
   const handlePin = useCallback(async () => {
+    if (loading === "pin") return
     try {
       const res = await communityApi.pinPost(post._id)
       setPinned(res.pinned)
-    } catch {}
-  }, [post._id])
+    } catch {} finally {
+    }
+  }, [post._id, loading])
 
   const handleDelete = useCallback(async () => {
     if (!confirm("Delete this post?")) return
+    if (loading === "delete") return
     try {
+      setLoading("delete")
       await communityApi.deletePost(post._id)
       onDelete?.(post._id)
-    } catch {}
-  }, [post._id, onDelete])
+    } catch {} finally {
+      setLoading("")
+    }
+  }, [post._id, onDelete, loading])
 
   const handleEdit = useCallback(async () => {
     if (!editContent.trim()) return
@@ -80,8 +98,9 @@ export function PostCard({ post, onUpdate, onDelete }: PostCardProps) {
       const res = await communityApi.updatePost(post._id, { content: editContent.trim() })
       onUpdate?.(res.post)
       setIsEditing(false)
-    } catch {}
-    setLoading("")
+    } catch {} finally {
+      setLoading("")
+    }
   }, [post._id, editContent, onUpdate])
 
   const handleReport = useCallback(async () => {
@@ -119,9 +138,9 @@ export function PostCard({ post, onUpdate, onDelete }: PostCardProps) {
     if (mins < 1) return "just now"
     if (mins < 60) return `${mins}m ago`
     const hours = Math.floor(mins / 60)
-    if (hours < 24) return `${hours}h ago`
+    if (hours < 24) return `${hours}h ago"
     const days = Math.floor(hours / 24)
-    if (days < 7) return `${days}d ago`
+    if (days < 7) return `${days}d ago"
     return new Date(date).toLocaleDateString()
   }
 
@@ -245,9 +264,26 @@ export function PostCard({ post, onUpdate, onDelete }: PostCardProps) {
               {m.type === "image" || m.type === "gif" ? (
                 <img src={m.url} alt="" className="w-full h-48 object-cover" loading="lazy" />
               ) : m.type === "video" ? (
-                <video src={m.url} controls className="w-full h-48 object-cover" />
+                <div className="relative w-full h-48 bg-black/50">
+                  {videoError ? (
+                    <div className="w-full h-48 flex items-center justify-center text-white/40 text-xs">
+                      Failed to load video
+                    </div>
+                  ) : (
+                    <video 
+                      src={m.url} 
+                      controls 
+                      className="w-full h-48 object-cover"
+                      preload="metadata"
+                      onError={() => setVideoError(true)}
+                      onLoadedData={() => setVideoLoaded(true)}
+                    />
+                  )}
+                </div>
               ) : m.type === "voice" ? (
-                <audio src={m.url} controls className="w-full p-3" />
+                <div className="w-full p-3">
+                  <audio src={m.url} controls className="w-full" preload="metadata" />
+                </div>
               ) : null}
             </div>
           ))}

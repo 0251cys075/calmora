@@ -47,7 +47,11 @@ export default function CommunityPage() {
     try {
       const res = await communityApi.getFeed(pageNum, tagFilter || undefined)
       if (append) {
-        setPosts((prev) => [...prev, ...res.posts])
+        setPosts((prev) => {
+          const existingIds = new Set(prev.map(p => p._id))
+          const newPosts = res.posts.filter(post => !existingIds.has(post._id))
+          return [...prev, ...newPosts]
+        })
       } else {
         setPosts(res.posts)
       }
@@ -59,13 +63,17 @@ export default function CommunityPage() {
   }, [tagFilter])
 
   useEffect(() => {
-    loadPosts(1)
+    setPosts([])
     setPage(1)
-  }, [tagFilter, loadPosts])
+    setHasMore(true)
+    loadPosts(1)
+  }, [tagFilter])
 
   // Infinite scroll
   useEffect(() => {
-    if (observerRef.current) observerRef.current.disconnect()
+    if (observerRef.current) {
+      observerRef.current.disconnect()
+    }
     observerRef.current = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasMore && !loadingMore) {
@@ -74,10 +82,18 @@ export default function CommunityPage() {
           loadPosts(nextPage, true)
         }
       },
-      { threshold: 0.1 }
+      { 
+        threshold: 0.1,
+        rootMargin: "100px"
+      }
     )
     if (loadMoreRef.current) observerRef.current.observe(loadMoreRef.current)
-    return () => observerRef.current?.disconnect()
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect()
+      }
+      observerRef.current = null
+    }
   }, [hasMore, loadingMore, page, loadPosts])
 
   const handlePostCreated = (post: PostData) => {
@@ -151,12 +167,17 @@ export default function CommunityPage() {
             {["", "meditation", "gratitude", "anxiety", "mindfulness", "selfcare", "motivation", "challenge"].map((tag) => (
               <button
                 key={tag}
-                onClick={() => setTagFilter(tag)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setTagFilter(tag);
+                }}
                 className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
                   tagFilter === tag
                     ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
                     : "bg-white/5 text-white/50 border border-white/10 hover:text-white hover:bg-white/10"
                 }`}
+                type="button"
               >
                 {tag ? `#${tag}` : "All Posts"}
               </button>
