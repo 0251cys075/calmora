@@ -48,15 +48,19 @@ export default function RelaxPage() {
 
   useEffect(() => {
     if (breathPhase !== "idle") {
+      const phaseDurations: Record<string, number> = { in: 4000, hold: 4000, out: 6000 }
       const phases = ["in", "hold", "out", "hold"] as const
       let i = 0
-      breathInterval.current = setInterval(() => {
+      const tick = () => {
         setBreathPhase(phases[i])
+        const ms = phaseDurations[phases[i]]
         i = (i + 1) % phases.length
-      }, 4000)
+        breathInterval.current = setTimeout(tick, ms) as unknown as ReturnType<typeof setInterval>
+      }
+      tick()
     }
     return () => {
-      if (breathInterval.current) clearInterval(breathInterval.current)
+      if (breathInterval.current) clearTimeout(breathInterval.current as unknown as number)
     }
   }, [breathPhase !== "idle"])
 

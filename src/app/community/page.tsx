@@ -72,16 +72,39 @@ const prompts = [
   "A piece of advice for your past self",
 ]
 
+const sampleBadges = ["🌟 Veteran", "🌱 Rising Star", "💎 Champion", "🌊 Wave Rider", "🔥 Phoenix", "🌙 Moon Seeker"]
+const sampleNames = ["CalmSeeker42", "MindfulMornings", "BreathingEasy", "GrowthJourney", "ZenMaster", "PeacefulSoul"]
+const sampleContents = [
+  "Just hit a new milestone in my wellness journey! Consistency is key. 🎯",
+  "Taking a moment to appreciate the little things today. What are you grateful for?",
+  "Deep breathing exercises have completely changed my morning routine. Try it!",
+  "Week 3 of my 21-day challenge and I'm feeling stronger every day. 💪",
+  "Remember: progress, not perfection. Every small step counts.",
+  "Spent 20 minutes in nature today. Best therapy there is. 🌿",
+]
+const sampleTags = [
+  ["wellness", "milestone"],
+  ["gratitude", "mindfulness"],
+  ["breathing", "morning-routine"],
+  ["challenge", "growth"],
+  ["motivation", "mindset"],
+  ["nature", "self-care"],
+]
+
+const LOAD_MORE_COUNT = 3
+
 export default function CommunityPage() {
   const [posts, setPosts] = useLocalStorage<Post[]>("calmora_community_posts", defaultPosts)
-  const [liked, setLiked] = useState<number[]>([])
+  const [liked, setLiked] = useLocalStorage<number[]>("calmora_community_liked", [])
   const [openComments, setOpenComments] = useState<number[]>([])
   const [commentInputs, setCommentInputs] = useState<Record<number, string>>({})
-  const [postComments, setPostComments] = useState<Record<number, { author: string; content: string; time: string }[]>>({})
+  const [postComments, setPostComments] = useLocalStorage<Record<number, { author: string; content: string; time: string }[]>>("calmora_community_comments", {})
   const [promptInput, setPromptInput] = useState("")
   const [showNewPost, setShowNewPost] = useState(false)
   const [newPostContent, setNewPostContent] = useState("")
   const [newPostTags, setNewPostTags] = useState("")
+  const [loadedCount, setLoadedCount] = useState(defaultPosts.length)
+  const [allExhausted, setAllExhausted] = useState(false)
 
   const sharePrompt = useCallback(() => {
     const text = promptInput.trim()
@@ -142,6 +165,28 @@ export default function CommunityPage() {
     }))
     setCommentInputs((prev) => ({ ...prev, [postId]: "" }))
   }
+
+  const loadMorePosts = useCallback(() => {
+    const nextBatch = Array.from({ length: LOAD_MORE_COUNT }, (_, i) => {
+      const idx = (loadedCount + i) % sampleContents.length
+      return {
+        id: Date.now() + i,
+        author: sampleNames[idx % sampleNames.length],
+        badge: sampleBadges[idx % sampleBadges.length],
+        time: `${Math.floor(Math.random() * 12) + 1}h ago`,
+        content: sampleContents[idx],
+        likes: Math.floor(Math.random() * 30) + 5,
+        comments: Math.floor(Math.random() * 10),
+        tags: sampleTags[idx % sampleTags.length],
+      } as Post
+    })
+    setPosts((prev) => [...prev, ...nextBatch])
+    setLoadedCount((prev) => {
+      const next = prev + LOAD_MORE_COUNT
+      if (next >= 50) setAllExhausted(true)
+      return next
+    })
+  }, [loadedCount, setPosts])
 
   return (
     <div className="space-y-6">
@@ -272,7 +317,11 @@ export default function CommunityPage() {
       </div>
 
       <div className="text-center py-4">
-        <Button variant="glass">Load More Posts</Button>
+        {allExhausted ? (
+          <p className="text-sm text-white/30">No more posts to load</p>
+        ) : (
+          <Button variant="glass" onClick={loadMorePosts}>Load More Posts</Button>
+        )}
       </div>
 
       <AnimatePresence>

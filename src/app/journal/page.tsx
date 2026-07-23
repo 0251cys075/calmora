@@ -13,6 +13,7 @@ import {
 import { journalApi, withFallback, isOnline, type JournalEntry } from "@/lib/api"
 import { useLocalStorage } from "@/lib/hooks/useLocalStorage"
 import { validateSchema, journalEntrySchema } from "@/lib/validation"
+import { useToast } from "@/components/providers/ToastProvider"
 
 const prompts = [
   "What are three things you're grateful for today?",
@@ -23,6 +24,7 @@ const prompts = [
 ]
 
 export default function JournalPage() {
+  const { showToast } = useToast()
   const [activePrompt, setActivePrompt] = useState(0)
   const [journalEntry, setJournalEntry] = useState("")
   const [showPrompts, setShowPrompts] = useState(true)
@@ -101,6 +103,7 @@ export default function JournalPage() {
     setSaving(false)
 
     const userData = JSON.parse(localStorage.getItem("calmora_user") || "{}")
+    const oldLevel = userData.level || 8
     userData.xp = (userData.xp || 1200) + 10
     userData.calmScore = Math.min(1000, (userData.calmScore || 850) + 5)
     const nextLevelXp = (userData.level || 8) * 500
@@ -108,6 +111,12 @@ export default function JournalPage() {
       userData.level = (userData.level || 8) + 1
     }
     localStorage.setItem("calmora_user", JSON.stringify(userData))
+
+    if (userData.level > oldLevel) {
+      showToast("🎉 Level Up!", "levelUp", userData.level * 100)
+    } else {
+      showToast("Journal saved", "xp", 10)
+    }
 
     if (!isOnline()) return
 

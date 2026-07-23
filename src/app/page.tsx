@@ -13,6 +13,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useAuth } from "@/lib/hooks/useAuth"
+import { useLocalStorage } from "@/lib/hooks/useLocalStorage"
 import { LandingPage } from "@/components/landing/LandingPage"
 
 const container = {
@@ -28,9 +29,68 @@ const item = {
   show: { opacity: 1, y: 0 },
 }
 
+function getDayKey(date: Date): string {
+  return date.toLocaleDateString("en-US", { weekday: "short" })
+}
+
+function dateInRange(d: Date, start: Date, end: Date): boolean {
+  const t = d.getTime()
+  return t >= start.getTime() && t <= end.getTime()
+}
+
+function getLast7Days(): Date[] {
+  const days: Date[] = []
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date()
+    d.setDate(d.getDate() - i)
+    d.setHours(0, 0, 0, 0)
+    days.push(d)
+  }
+  return days
+}
+
 export default function Home() {
   const { user, isAuthenticated, loading } = useAuth()
   const quote = getDailyQuote()
+  const [moodEntries] = useLocalStorage<{ mood: number; note: string; date: string }[]>("calmora_mood_entries", [])
+  const [habits] = useLocalStorage<{ name: string; logs: { date: string; completed: boolean }[] }[]>("calmora_habits", [])
+  const [journalEntries] = useLocalStorage<{ _id: string; title: string; content: string; date: string }[]>("calmora_journal_entries", [])
+  const [meditationMinutes] = useLocalStorage<number>("calmora_meditation_minutes", 0)
+  const [challengeProgress] = useLocalStorage<number>("calmora_challenge_progress", 33)
+
+  const last7Days = getLast7Days()
+  const dayLabels = ["M","T","W","T","F","S","S"]
+
+  const weeklyData = last7Days.map((day) => {
+    const dayStart = new Date(day)
+    dayStart.setHours(0, 0, 0, 0)
+    const dayEnd = new Date(day)
+    dayEnd.setHours(23, 59, 59, 999)
+    const dayEntries = moodEntries.filter((e) => {
+      const ed = new Date(e.date)
+      return ed >= dayStart && ed <= dayEnd
+    })
+    if (dayEntries.length === 0) return 0
+    const avg = dayEntries.reduce((s, e) => s + e.mood, 0) / dayEntries.length
+    return Math.round((avg / 5) * 100)
+  })
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const todayTime = today.getTime()
+  const habitsToday = habits.filter((h) =>
+    (h.logs || []).some((l) => {
+      const ld = new Date(l.date)
+      ld.setHours(0, 0, 0, 0)
+      return ld.getTime() === todayTime && l.completed
+    })
+  ).length
+
+  const prevWeeklyData = [65, 80, 55, 85, 70, 90, 75]
+  const avgThis = weeklyData.filter(v => v > 0).reduce((s, v) => s + v, 0) / Math.max(weeklyData.filter(v => v > 0).length, 1)
+  const avgPrev = prevWeeklyData.reduce((s, v) => s + v, 0) / prevWeeklyData.length
+  const trend = avgThis > 0 ? Math.round(((avgThis - avgPrev) / avgPrev) * 100) : 0
+  const trendStr = trend >= 0 ? `+${trend}%` : `${trend}%`
 
   if (loading) {
     return (
@@ -57,8 +117,6 @@ export default function Home() {
     { href: "/relax", label: "Relax", icon: Wind, color: "from-blue-500 to-cyan-500", desc: "Breathe & meditate" },
   ]
 
-  const weeklyData = [70, 85, 60, 90, 75, 95, 80]
-
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
       <motion.div variants={item} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -73,7 +131,7 @@ export default function Home() {
           </Badge>
           <Badge variant="success" size="md">
             <Zap className="w-3.5 h-3.5" />
-            5 day streak
+            {user?.streak || 0} day streak
           </Badge>
         </div>
       </motion.div>
@@ -133,7 +191,7 @@ export default function Home() {
               <h2 className="text-lg font-semibold text-white">Weekly Progress</h2>
               <div className="flex items-center gap-1 text-sm text-white/40">
                 <TrendingUp className="w-4 h-4 text-emerald-400" />
-                <span className="text-emerald-400">+12%</span> vs last week
+                <span className="text-emerald-400">{trendStr}</span> vs last week
               </div>
             </div>
             <div className="flex items-end justify-between h-40 gap-2">
@@ -150,7 +208,7 @@ export default function Home() {
                       {value}%
                     </div>
                   </motion.div>
-                  <span className="text-xs text-white/40">{["M","T","W","T","F","S","S"][i]}</span>
+                  <span className="text-xs text-white/40">{dayLabels[i]}</span>
                 </div>
               ))}
             </div>
@@ -170,7 +228,7 @@ export default function Home() {
                   <p className="text-xs text-white/40">Write 3 things you're grateful for</p>
                 </div>
               </div>
-              <Progress value={33} size="sm" variant="gradient" />
+              <Progress value={challengeProgress} size="sm" variant="gradient" />
               <Link href="/challenges">
                 <Button variant="glass" size="sm" className="w-full">
                   View Challenge
@@ -187,10 +245,10 @@ export default function Home() {
           <h2 className="text-lg font-semibold text-white mb-4">Activity Overview</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: "Mood Entries", value: "12", change: "+3", icon: Smile, color: "text-amber-400" },
-              { label: "Habits Done", value: "8/10", change: "80%", icon: Activity, color: "text-emerald-400" },
-              { label: "Journal Pages", value: "6", change: "+2", icon: BookOpen, color: "text-blue-400" },
-              { label: "Meditation", value: "45 min", change: "+15", icon: Wind, color: "text-purple-400" },
+              { label: "Mood Entries", value: `${moodEntries.length}`, change: `+${Math.min(moodEntries.length, 5)}`, icon: Smile, color: "text-amber-400" },
+              { label: "Habits Done", value: `${habitsToday}/${habits.length || 6}`, change: `${habits.length > 0 ? Math.round((habitsToday / habits.length) * 100) : 0}%`, icon: Activity, color: "text-emerald-400" },
+              { label: "Journal Pages", value: `${journalEntries.length}`, change: `+${Math.min(journalEntries.length, 3)}`, icon: BookOpen, color: "text-blue-400" },
+              { label: "Meditation", value: `${meditationMinutes} min`, change: `+${Math.min(meditationMinutes, 30)}`, icon: Wind, color: "text-purple-400" },
             ].map((stat) => {
               const Icon = stat.icon
               return (

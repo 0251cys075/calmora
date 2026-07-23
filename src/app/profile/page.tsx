@@ -4,13 +4,15 @@ import { GlassCard } from "@/components/ui/glass-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import {
   Trophy, Star, Medal, Flame, Zap,
   Shield, Heart, Brain, Target,
-  Settings, LogOut, Edit3
+  Settings, LogOut, Edit3, X, Moon, Sun, Bell, Download, Share2
 } from "lucide-react"
 import { useAuth } from "@/lib/hooks/useAuth"
+import { useState, useRef, useCallback, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 
 const badges = [
@@ -32,14 +34,20 @@ const achievements = [
 
 export default function ProfilePage() {
   const { user, logout } = useAuth()
+  const router = useRouter()
+  const [showSettings, setShowSettings] = useState(false)
+  const [theme, setTheme] = useState<"dark" | "light">("dark")
+  const canvasRef = useRef<HTMLCanvasElement>(null)
 
   const initials = user?.name
     ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
     : "?"
 
-  const xpInLevel = (user?.xp ?? 0) % 500
-  const nextLevelXp = ((user?.level ?? 1) * 500)
-  const xpPercent = Math.min(Math.round((xpInLevel / (user?.level ? 500 : 1)) * 100), 100)
+  const level = user?.level ?? 1
+  const xp = user?.xp ?? 0
+  const nextLevelXp = level * 500
+  const xpInLevel = xp % nextLevelXp
+  const xpPercent = Math.min(Math.round((xpInLevel / nextLevelXp) * 100), 100)
 
   const calmPercent = Math.min(Math.round(((user?.calmScore ?? 0) / 1000) * 100), 100)
 
@@ -47,8 +55,84 @@ export default function ProfilePage() {
     ? new Date(parseInt(user.id.replace(/\D/g, "").slice(0, 12), 10) || Date.now()).toLocaleDateString("en-US", { month: "long", year: "numeric" })
     : "July 2026"
 
+  const handleSignOut = useCallback(() => {
+    logout()
+    router.push("/auth")
+  }, [logout, router])
+
+  const handleShare = useCallback(() => {
+    const canvas = canvasRef.current
+    if (!canvas || !user) return
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+
+    canvas.width = 600
+    canvas.height = 400
+
+    const gradient = ctx.createLinearGradient(0, 0, 600, 400)
+    gradient.addColorStop(0, "#1e3a5f")
+    gradient.addColorStop(0.5, "#0a0f1e")
+    gradient.addColorStop(1, "#1a1a2e")
+    ctx.fillStyle = gradient
+    ctx.fillRect(0, 0, 600, 400)
+
+    ctx.strokeStyle = "rgba(255,255,255,0.1)"
+    ctx.lineWidth = 1
+    ctx.strokeRect(10, 10, 580, 380)
+
+    ctx.fillStyle = "rgba(255,255,255,0.05)"
+    ctx.fillRect(20, 20, 560, 360)
+
+    ctx.fillStyle = "#ffffff"
+    ctx.font = "bold 36px sans-serif"
+    ctx.fillText("Calmora", 40, 80)
+
+    ctx.fillStyle = "rgba(255,255,255,0.5)"
+    ctx.font = "16px sans-serif"
+    ctx.fillText("Wellness Progress Card", 40, 105)
+
+    ctx.fillStyle = "#ffffff"
+    ctx.font = "bold 28px sans-serif"
+    ctx.fillText(user.name || "Guest", 40, 160)
+
+    const earned = badges.filter((b) => b.earned).slice(0, 3)
+    ctx.font = "14px sans-serif"
+    ctx.fillStyle = "#fbbf24"
+    ctx.fillText(`Level ${level}`, 40, 195)
+    ctx.fillStyle = "#f97316"
+    ctx.fillText(`${user?.streak ?? 0} Day Streak`, 150, 195)
+
+    ctx.fillStyle = "rgba(255,255,255,0.7)"
+    ctx.font = "16px sans-serif"
+    ctx.fillText(`Calm Score: ${user?.calmScore ?? 0}`, 40, 235)
+    ctx.fillText(`XP: ${xp}`, 40, 260)
+
+    ctx.fillStyle = "#a78bfa"
+    ctx.font = "14px sans-serif"
+    ctx.fillText("Badges:", 40, 300)
+    earned.forEach((b, i) => {
+      ctx.fillStyle = "#ffffff"
+      ctx.fillText(b.name, 40 + i * 140, 325)
+    })
+
+    canvas.toBlob((blob) => {
+      if (!blob) return
+      const item = new ClipboardItem({ "image/png": blob })
+      navigator.clipboard.write([item]).catch(() => {
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.href = url
+        a.download = "calmora-progress.png"
+        a.click()
+        URL.revokeObjectURL(url)
+      })
+    })
+  }, [user])
+
   return (
     <div className="space-y-6">
+      <canvas ref={canvasRef} className="hidden" />
+
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-4">
@@ -60,7 +144,7 @@ export default function ProfilePage() {
               <p className="text-white/50 text-sm">Member since {memberDate}</p>
               <div className="flex items-center gap-2 mt-2">
                 <Badge variant="premium" size="sm">
-                  <Trophy className="w-3 h-3" /> Level {user?.level ?? 1}
+                  <Trophy className="w-3 h-3" /> Level {level}
                 </Badge>
                 <Badge variant="success" size="sm">
                   <Flame className="w-3 h-3" /> {user?.streak ?? 0} Day Streak
@@ -69,8 +153,8 @@ export default function ProfilePage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button variant="glass" size="sm" icon={<Settings className="w-4 h-4" />}>Settings</Button>
-            <Button variant="glass" size="sm" icon={<LogOut className="w-4 h-4" />} onClick={logout}>Sign Out</Button>
+            <Button variant="glass" size="sm" icon={<Settings className="w-4 h-4" />} onClick={() => setShowSettings(true)}>Settings</Button>
+            <Button variant="glass" size="sm" icon={<LogOut className="w-4 h-4" />} onClick={handleSignOut}>Sign Out</Button>
           </div>
         </div>
       </motion.div>
@@ -104,10 +188,15 @@ export default function ProfilePage() {
                   <p className="text-xs text-white/40">Badges</p>
                 </div>
                 <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-center">
-                  <p className="text-lg font-bold text-gradient-emerald">{(user?.xp ?? 0) * 2}</p>
+                  <p className="text-lg font-bold text-gradient-emerald">{(xp) * 2}</p>
                   <p className="text-xs text-white/40">Calm Coins</p>
                 </div>
               </div>
+            </div>
+            <div className="mt-4">
+              <Button variant="glass" size="sm" className="w-full" icon={<Share2 className="w-4 h-4" />} onClick={handleShare}>
+                Share My Progress
+              </Button>
             </div>
           </GlassCard>
         </motion.div>
@@ -168,6 +257,61 @@ export default function ProfilePage() {
           </div>
         </GlassCard>
       </motion.div>
+
+      <AnimatePresence>
+        {showSettings && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            onClick={() => setShowSettings(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative w-full max-w-md rounded-2xl border border-white/10 shadow-2xl bg-[#0a0f1e] p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold text-white">Settings</h3>
+                <button onClick={() => setShowSettings(false)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/20 transition-all">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {theme === "dark" ? <Moon className="w-5 h-5 text-blue-400" /> : <Sun className="w-5 h-5 text-amber-400" />}
+                      <div>
+                        <p className="text-sm font-medium text-white">Theme</p>
+                        <p className="text-xs text-white/40">Dark mode (always on)</p>
+                      </div>
+                    </div>
+                    <Badge variant="info" size="sm">Dark</Badge>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Bell className="w-5 h-5 text-purple-400" />
+                      <div>
+                        <p className="text-sm font-medium text-white">Notifications</p>
+                        <p className="text-xs text-white/40">Daily reminders for habits, journaling, and challenges</p>
+                      </div>
+                    </div>
+                    <Badge variant="success" size="sm">Enabled</Badge>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

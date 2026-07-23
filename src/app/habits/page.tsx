@@ -4,16 +4,17 @@ import { GlassCard } from "@/components/ui/glass-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import { useState, useEffect, useCallback } from "react"
 import {
   ChartNoAxesColumn, Check, Plus, Flame,
   Smile, Meh, Frown, Angry, Sun,
   Activity, Brain, Heart, Coffee, BookOpen,
-  Dumbbell, Zap, TrendingUp, AlertCircle
+  Dumbbell, Zap, TrendingUp, AlertCircle, X
 } from "lucide-react"
 import { habitsApi, moodsApi, withFallback, isOnline, type HabitData } from "@/lib/api"
 import { useLocalStorage } from "@/lib/hooks/useLocalStorage"
+import { useToast } from "@/components/providers/ToastProvider"
 
 const moodsConfig = [
   { value: 5, icon: <Smile className="w-6 h-6" />, label: "Great", color: "text-emerald-400", bg: "bg-emerald-500/20 border-emerald-500/30" },
@@ -21,6 +22,15 @@ const moodsConfig = [
   { value: 3, icon: <Meh className="w-6 h-6" />, label: "Okay", color: "text-amber-400", bg: "bg-amber-500/20 border-amber-500/30" },
   { value: 2, icon: <Frown className="w-6 h-6" />, label: "Low", color: "text-orange-400", bg: "bg-orange-500/20 border-orange-500/30" },
   { value: 1, icon: <Angry className="w-6 h-6" />, label: "Poor", color: "text-rose-400", bg: "bg-rose-500/20 border-rose-500/30" },
+]
+
+const habitIcons = [
+  { name: "Brain", icon: Brain, color: "text-purple-400" },
+  { name: "Coffee", icon: Coffee, color: "text-blue-400" },
+  { name: "BookOpen", icon: BookOpen, color: "text-amber-400" },
+  { name: "Dumbbell", icon: Dumbbell, color: "text-emerald-400" },
+  { name: "Heart", icon: Heart, color: "text-rose-400" },
+  { name: "Zap", icon: Zap, color: "text-cyan-400" },
 ]
 
 const defaultHabits = [
@@ -47,6 +57,7 @@ interface LocalHabit {
 }
 
 export default function HabitsPage() {
+  const { showToast } = useToast()
   const [selectedMood, setSelectedMood] = useState<number | null>(null)
   const [habitsList, setHabitsList] = useLocalStorage<HabitData[]>("calmora_habits", [])
   const [habitNote, setHabitNote] = useState("")
@@ -55,6 +66,10 @@ export default function HabitsPage() {
   const [savingMood, setSavingMood] = useState(false)
   const [loading, setLoading] = useState(true)
   const [offline, setOffline] = useState(false)
+  const [showAddHabit, setShowAddHabit] = useState(false)
+  const [newHabitName, setNewHabitName] = useState("")
+  const [newHabitIcon, setNewHabitIcon] = useState(0)
+  const [newHabitTime, setNewHabitTime] = useState("8:00 AM")
 
   useEffect(() => {
     if (habitsList.length === 0) {
@@ -107,6 +122,7 @@ export default function HabitsPage() {
   const displayHabits = computeDisplayHabits()
 
   const toggleHabit = useCallback((id: string) => {
+    let wasCompleted = false
     setHabitsList((prev) => {
       const updated = prev.map((h) => {
         const habitId = h._id || h.name
@@ -117,6 +133,7 @@ export default function HabitsPage() {
           (l) => new Date(l.date).setHours(0, 0, 0, 0) === todayTime
         )
         const newCompleted = !(existingLog?.completed ?? false)
+        wasCompleted = newCompleted
         const newLogs = existingLog
           ? (h.logs || []).map((l) =>
               new Date(l.date).setHours(0, 0, 0, 0) === todayTime
@@ -134,9 +151,42 @@ export default function HabitsPage() {
       return updated
     })
 
+    if (wasCompleted) {
+      const userData = JSON.parse(localStorage.getItem("calmora_user") || "{}")
+      const oldLevel = userData.level || 8
+      userData.xp = (userData.xp || 1200) + 10
+      const nextLevelXp = (userData.level || 8) * 500
+      if (userData.xp >= nextLevelXp) {
+        userData.level = (userData.level || 8) + 1
+      }
+      localStorage.setItem("calmora_user", JSON.stringify(userData))
+      if (userData.level > oldLevel) {
+        showToast("🎉 Level Up!", "levelUp", userData.level * 100)
+      } else {
+        showToast("Habit completed!", "xp", 10)
+      }
+    }
+
     if (!isOnline()) return
     habitsApi.toggle(id).catch(() => {})
-  }, [])
+  }, [showToast])
+
+  const addHabit = useCallback(() => {
+    const name = newHabitName.trim()
+    if (!name) return
+    const newHabit: HabitData = {
+      _id: `custom_${Date.now()}`,
+      name,
+      logs: [],
+      streak: 0,
+      totalCompletions: 0,
+    }
+    setHabitsList((prev) => [...prev, newHabit])
+    setNewHabitName("")
+    setNewHabitIcon(0)
+    setNewHabitTime("8:00 AM")
+    setShowAddHabit(false)
+  }, [newHabitName, newHabitIcon, setHabitsList])
 
   const handleMoodSubmit = () => {
     if (!selectedMood) return
@@ -191,9 +241,17 @@ export default function HabitsPage() {
           <GlassCard>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-white">Today's Habits</h2>
-              <Badge variant="success">
-                <Check className="w-3 h-3" /> {completedCount}/{displayHabits.length}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowAddHabit(true)}
+                  className="w-7 h-7 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center hover:bg-white/20 transition-all"
+                >
+                  <Plus className="w-4 h-4 text-white" />
+                </button>
+                <Badge variant="success">
+                  <Check className="w-3 h-3" /> {completedCount}/{displayHabits.length}
+                </Badge>
+              </div>
             </div>
             <Progress value={(completedCount / displayHabits.length) * 100} variant="success" showLabel label="Daily Progress" className="mb-4" />
             <div className="space-y-2">
@@ -358,6 +416,84 @@ export default function HabitsPage() {
           </div>
         </GlassCard>
       </motion.div>
+
+      <AnimatePresence>
+        {showAddHabit && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            onClick={() => setShowAddHabit(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative w-full max-w-md rounded-2xl border border-white/10 shadow-2xl bg-[#0a0f1e] p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-white">Add Habit</h3>
+                <button onClick={() => setShowAddHabit(false)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/20 transition-all">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-white/60 mb-1.5">Habit Name</p>
+                  <input
+                    type="text"
+                    value={newHabitName}
+                    onChange={(e) => setNewHabitName(e.target.value)}
+                    placeholder="e.g. Stretch for 5 minutes"
+                    className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 text-sm"
+                  />
+                </div>
+
+                <div>
+                  <p className="text-sm text-white/60 mb-1.5">Icon</p>
+                  <div className="grid grid-cols-6 gap-2">
+                    {habitIcons.map((item, idx) => {
+                      const ItemIcon = item.icon
+                      return (
+                        <button
+                          key={item.name}
+                          onClick={() => setNewHabitIcon(idx)}
+                          className={`p-3 rounded-xl border flex items-center justify-center transition-all ${
+                            newHabitIcon === idx
+                              ? "bg-blue-500/20 border-blue-500/50"
+                              : "bg-white/5 border-white/10 hover:bg-white/10"
+                          }`}
+                        >
+                          <ItemIcon className={`w-5 h-5 ${item.color}`} />
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-sm text-white/60 mb-1.5">Preferred Time</p>
+                  <input
+                    type="text"
+                    value={newHabitTime}
+                    onChange={(e) => setNewHabitTime(e.target.value)}
+                    placeholder="e.g. 8:00 AM"
+                    className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 mt-6">
+                <Button variant="glass" onClick={() => setShowAddHabit(false)}>Cancel</Button>
+                <Button variant="primary" onClick={addHabit} disabled={!newHabitName.trim()}>Add Habit</Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
