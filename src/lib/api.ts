@@ -27,10 +27,9 @@ export async function api<T = unknown>(endpoint: string, options: ApiOptions = {
       errorMessage = getStatusMessage(res.status)
     }
 
-    if (res.status === 401) {
+    if (res.status === 401 && !skipAuth) {
       if (typeof window !== "undefined") {
         localStorage.removeItem("calmora_user")
-        window.location.href = "/auth"
       }
     }
 
@@ -92,7 +91,7 @@ export const authApi = {
       skipAuth: true,
     }),
 
-  me: () => api<{ user: UserData }>("/auth/me"),
+  me: () => api<{ user: UserData }>("/auth/me", { skipAuth: true }),
 }
 
 export interface UserData {
