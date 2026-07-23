@@ -38,7 +38,7 @@ export function PostComposer({ onPostCreated, compact }: PostComposerProps) {
 
     const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'video/mp4', 'video/webm', 'video/quicktime']
     if (!validTypes.includes(file.type)) {
-      setMediaErrors(prev => [...prev, `${file.name} is not a supported format (MP4, WebM, MOV, JPG, PNG, GIF)])
+      setMediaErrors(prev => [...prev, `${file.name} is not a supported format (MP4, WebM, MOV, JPG, PNG, GIF)`])
       return false
     }
 
