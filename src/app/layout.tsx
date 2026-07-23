@@ -4,6 +4,7 @@ import "./globals.css"
 import { MainLayout } from "@/components/layout/MainLayout"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { ToastProvider } from "@/components/providers/ToastProvider"
+import { AuthProvider } from "@/lib/hooks/AuthProvider"
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,7 +28,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen bg-[#0a0f1e] antialiased">
         <ErrorBoundary>
           <ToastProvider>
-            <MainLayout>{children}</MainLayout>
+            <AuthProvider>
+              <MainLayout>{children}</MainLayout>
+            </AuthProvider>
           </ToastProvider>
         </ErrorBoundary>
       </body>
