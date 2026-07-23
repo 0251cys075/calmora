@@ -9,7 +9,8 @@ import { challenges, type ChallengeDay } from "@/lib/data/challenges"
 import { motion } from "framer-motion"
 import Link from "next/link"
 import { ArrowLeft, Check, Clock, Trophy, Star, Target, BookOpen, Brain, Heart, Sparkles, Zap } from "lucide-react"
-import { useState } from "react"
+import { useLocalStorage } from "@/lib/hooks/useLocalStorage"
+import { useCallback } from "react"
 
 const typeIcons: Record<string, React.ReactNode> = {
   task: <Target className="w-4 h-4" />,
@@ -32,7 +33,23 @@ const typeColors: Record<string, string> = {
 export default function ChallengeDetailPage() {
   const params = useParams()
   const challenge = challenges.find((c) => c.id === params.id)
-  const [completedDays, setCompletedDays] = useState<number[]>([])
+  const [completedDays, setCompletedDays] = useLocalStorage<number[]>(
+    `calmora_challenge_progress_${params.id}`,
+    []
+  )
+
+  const awardXp = useCallback((amount: number) => {
+    try {
+      const userData = JSON.parse(localStorage.getItem("calmora_user") || "{}")
+      userData.xp = (userData.xp || 1200) + amount
+      userData.calmScore = Math.min(1000, (userData.calmScore || 850) + Math.round(amount / 5))
+      const nextLevelXp = (userData.level || 8) * 500
+      if (userData.xp >= nextLevelXp) {
+        userData.level = (userData.level || 8) + 1
+      }
+      localStorage.setItem("calmora_user", JSON.stringify(userData))
+    } catch { /* ignore */ }
+  }, [])
 
   if (!challenge) {
     return (
@@ -115,6 +132,7 @@ export default function ChallengeDetailPage() {
                     setCompletedDays((prev) => prev.filter((d) => d !== day.day))
                   } else {
                     setCompletedDays((prev) => [...prev, day.day])
+                    awardXp(25)
                   }
                 }}
               >

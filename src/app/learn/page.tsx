@@ -77,6 +77,7 @@ const typeIcons: Record<string, React.ReactNode> = {
 
 export default function LearnPage() {
   const [activeCategory, setActiveCategory] = useState("anxiety")
+  const [searchQuery, setSearchQuery] = useState("")
   const [bookmarked, setBookmarked] = useState<string[]>([])
   const [activeVideoUrl, setActiveVideoUrl] = useState<string | null>(null)
   const [activeVideoTitle, setActiveVideoTitle] = useState("")
@@ -92,6 +93,12 @@ export default function LearnPage() {
   const lastUrlRef = useRef<string | null>(null)
 
   const content = getContentByCategory(activeCategory)
+  const filteredContent = searchQuery.trim()
+    ? content.filter((item) =>
+        item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.description.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : content
 
   useEffect(() => {
     return () => {
@@ -231,6 +238,8 @@ export default function LearnPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
               <input
                 type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search..."
                 className="pl-9 pr-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 text-sm w-48"
               />
@@ -267,7 +276,7 @@ export default function LearnPage() {
             {categories.find((c) => c.id === activeCategory)?.name || "Content"}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {content.map((item: ContentItem, i: number) => (
+            {filteredContent.map((item: ContentItem, i: number) => (
               <motion.div
                 key={item.id}
                 initial={{ opacity: 0, y: 10 }}

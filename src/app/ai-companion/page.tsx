@@ -3,7 +3,7 @@
 import { GlassCard } from "@/components/ui/glass-card"
 import { Button } from "@/components/ui/button"
 import { motion } from "framer-motion"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useMemo } from "react"
 import {
   Bot, Send, Heart, Brain, Sparkles,
   MessageCircle, Headphones, BookOpen,
@@ -109,6 +109,44 @@ export default function AICompanionPage() {
   const activeModeData = modes.find((m) => m.id === activeMode)
   const Icon = activeModeData?.icon || Bot
 
+  const emotionLevels = useMemo(() => {
+    const userText = messages.filter((m) => m.role === "user").map((m) => m.content.toLowerCase()).join(" ")
+    const keywords = {
+      Stress: ["stress", "stressed", "overwhelmed", "burnout", "exhausted", "pressure", "tense"],
+      Anxiety: ["anxious", "anxiety", "worry", "worried", "nervous", "panic", "fear", "scared", "dread"],
+      Happiness: ["happy", "glad", "joy", "grateful", "thankful", "wonderful", "great", "amazing", "blessed", "peace"],
+      Energy: ["energy", "energetic", "tired", "fatigue", "sleepy", "drained", "motivated", "active", "sluggish"],
+    }
+    const counts: Record<string, number> = { Stress: 0, Anxiety: 0, Happiness: 0, Energy: 0 }
+    let total = 0
+    for (const [emotion, words] of Object.entries(keywords)) {
+      words.forEach((w) => {
+        const regex = new RegExp(`\\b${w}\\b`, "gi")
+        const matches = userText.match(regex)
+        if (matches) {
+          counts[emotion] += matches.length
+          total += matches.length
+        }
+      })
+    }
+    if (total === 0) {
+      return [
+        { emotion: "Stress", level: 30, color: "from-rose-500 to-pink-500" },
+        { emotion: "Anxiety", level: 25, color: "from-amber-500 to-orange-500" },
+        { emotion: "Happiness", level: 70, color: "from-emerald-500 to-teal-500" },
+        { emotion: "Energy", level: 50, color: "from-blue-500 to-cyan-500" },
+      ]
+    }
+    const maxCount = Math.max(...Object.values(counts), 1)
+    const clamp = (v: number) => Math.max(5, Math.min(100, v))
+    return [
+      { emotion: "Stress", level: clamp(Math.round((counts.Stress / maxCount) * 85)), color: "from-rose-500 to-pink-500" },
+      { emotion: "Anxiety", level: clamp(Math.round((counts.Anxiety / maxCount) * 80)), color: "from-amber-500 to-orange-500" },
+      { emotion: "Happiness", level: clamp(Math.round((counts.Happiness / maxCount) * 85) + 10), color: "from-emerald-500 to-teal-500" },
+      { emotion: "Energy", level: clamp(Math.round((counts.Energy / maxCount) * 80) + 5), color: "from-blue-500 to-cyan-500" },
+    ]
+  }, [messages])
+
   return (
     <div className="space-y-6">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
@@ -199,7 +237,7 @@ export default function AICompanionPage() {
                 {suggestions.map((s, i) => (
                   <button
                     key={i}
-                    onClick={() => { setInput(s); if (textareaRef.current) textareaRef.current.focus() }}
+                    onClick={() => { setInput((prev) => prev ? prev + " " + s : s); textareaRef.current?.focus() }}
                     className="text-xs px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-white/50 hover:text-white hover:bg-white/10 transition-all"
                   >
                     {s}
@@ -234,12 +272,7 @@ export default function AICompanionPage() {
           <GlassCard>
             <h3 className="text-lg font-semibold text-white mb-4">Emotion Detection</h3>
             <div className="space-y-3">
-              {[
-                { emotion: "Stress", level: 65, color: "from-rose-500 to-pink-500" },
-                { emotion: "Anxiety", level: 40, color: "from-amber-500 to-orange-500" },
-                { emotion: "Happiness", level: 75, color: "from-emerald-500 to-teal-500" },
-                { emotion: "Energy", level: 55, color: "from-blue-500 to-cyan-500" },
-              ].map((e) => (
+              {emotionLevels.map((e) => (
                 <div key={e.emotion}>
                   <div className="flex justify-between text-sm mb-1">
                     <span className="text-white/60">{e.emotion}</span>

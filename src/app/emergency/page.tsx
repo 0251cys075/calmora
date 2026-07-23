@@ -41,25 +41,26 @@ export default function EmergencyPage() {
   const breathInterval = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
-    if (isBreathing) {
-      breathInterval.current = setInterval(() => {
-        setBreathPhase((prev) => (prev + 1) % breathingSteps.length)
-      }, breathingSteps[breathPhase]?.duration || 4000)
+    if (!isBreathing) {
+      if (breathInterval.current) {
+        clearInterval(breathInterval.current)
+        breathInterval.current = null
+      }
+      return
+    }
 
-      return () => {
-        if (breathInterval.current) clearInterval(breathInterval.current)
+    const duration = breathingSteps[breathPhase]?.duration || 4000
+    breathInterval.current = setInterval(() => {
+      setBreathPhase((prev) => (prev + 1) % breathingSteps.length)
+    }, duration)
+
+    return () => {
+      if (breathInterval.current) {
+        clearInterval(breathInterval.current)
+        breathInterval.current = null
       }
     }
-  }, [isBreathing])
-
-  useEffect(() => {
-    if (isBreathing && breathInterval.current) {
-      clearInterval(breathInterval.current)
-      breathInterval.current = setInterval(() => {
-        setBreathPhase((prev) => (prev + 1) % breathingSteps.length)
-      }, breathingSteps[breathPhase]?.duration || 4000)
-    }
-  }, [breathPhase, isBreathing])
+  }, [isBreathing, breathPhase])
 
   const currentStep = breathingSteps[breathPhase]
 

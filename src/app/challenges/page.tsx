@@ -22,6 +22,20 @@ const item = {
   show: { opacity: 1, y: 0 },
 }
 
+function getChallengeProgress(challengeId: string): number {
+  if (typeof window === "undefined") return 0
+  try {
+    const raw = localStorage.getItem(`calmora_challenge_progress_${challengeId}`)
+    if (!raw) return 0
+    const completed: number[] = JSON.parse(raw)
+    const challenge = challenges.find((c) => c.id === challengeId)
+    if (!challenge) return 0
+    return Math.round((completed.length / challenge.days.length) * 100)
+  } catch {
+    return 0
+  }
+}
+
 export default function ChallengesPage() {
   const activeChallenges = challenges.slice(0, 2)
 
@@ -80,7 +94,7 @@ export default function ChallengesPage() {
                         +{challenge.xpReward} XP
                       </div>
                     </div>
-                    <Progress value={Math.floor(Math.random() * 100)} size="sm" variant="gradient" className="mt-3" />
+                    <Progress value={getChallengeProgress(challenge.id)} size="sm" variant="gradient" className="mt-3" />
                   </div>
                   <ArrowRight className="w-5 h-5 text-white/30 mt-2 flex-shrink-0" />
                 </div>

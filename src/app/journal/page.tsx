@@ -4,7 +4,7 @@ import { GlassCard } from "@/components/ui/glass-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { motion } from "framer-motion"
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import {
   BookOpen, Sparkles, Heart, Target,
   Send, Brain, Lightbulb,
@@ -29,6 +29,15 @@ export default function JournalPage() {
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const journalRef = useRef<HTMLTextAreaElement>(null)
+
+  const insertTemplate = (template: string) => {
+    setJournalEntry((prev) => {
+      const sep = prev && !prev.endsWith("\n") ? "\n\n" : ""
+      return prev + sep + template
+    })
+    setTimeout(() => journalRef.current?.focus(), 0)
+  }
 
   useEffect(() => {
     if (!isOnline()) {
@@ -81,6 +90,15 @@ export default function JournalPage() {
     setEntries((prev) => [localEntry, ...prev])
     setJournalEntry("")
     setSaving(false)
+
+    const userData = JSON.parse(localStorage.getItem("calmora_user") || "{}")
+    userData.xp = (userData.xp || 1200) + 10
+    userData.calmScore = Math.min(1000, (userData.calmScore || 850) + 5)
+    const nextLevelXp = (userData.level || 8) * 500
+    if (userData.xp >= nextLevelXp) {
+      userData.level = (userData.level || 8) + 1
+    }
+    localStorage.setItem("calmora_user", JSON.stringify(userData))
 
     if (!isOnline()) return
 
@@ -166,6 +184,7 @@ export default function JournalPage() {
             )}
 
             <textarea
+              ref={journalRef}
               value={journalEntry}
               onChange={(e) => setJournalEntry(e.target.value)}
               placeholder="Start writing your thoughts..."
@@ -178,8 +197,8 @@ export default function JournalPage() {
 
             <div className="flex items-center justify-between mt-4">
               <div className="flex gap-2">
-                <Button variant="glass" size="sm" icon={<Heart className="w-4 h-4" />}>Gratitude</Button>
-                <Button variant="glass" size="sm" icon={<Target className="w-4 h-4" />}>Goals</Button>
+                <Button variant="glass" size="sm" icon={<Heart className="w-4 h-4" />} onClick={() => insertTemplate("Today, I am grateful for: ")}>Gratitude</Button>
+                <Button variant="glass" size="sm" icon={<Target className="w-4 h-4" />} onClick={() => insertTemplate("My main focus for today: ")}>Goals</Button>
               </div>
               <Button onClick={handleSave} icon={<Send className="w-4 h-4" />} loading={saving}>
                 Save Entry
@@ -239,7 +258,9 @@ export default function JournalPage() {
                       </span>
                       <span>{getMoodEmoji(entry.mood)}</span>
                     </div>
-                    <p className="text-sm font-medium text-white truncate">{entry.title || "Untitled"}</p>
+                    <p className="text-sm font-medium text-white truncate">
+                      {(!entry.title || entry.title === entry.content || entry.content.length < 80) ? "Journal Entry" : entry.title}
+                    </p>
                     <p className="text-xs text-white/50 mt-1 line-clamp-1">{entry.content}</p>
                   </div>
                 ))}

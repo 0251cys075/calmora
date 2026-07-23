@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { motion, AnimatePresence } from "framer-motion"
 import { useState, useEffect, useRef } from "react"
+import { useLocalStorage } from "@/lib/hooks/useLocalStorage"
 import {
   GraduationCap, BookOpen, Brain, Timer,
   Target, Clock, Calendar, AlertTriangle,
@@ -19,7 +20,7 @@ export default function StudentPage() {
   const [timerActive, setTimerActive] = useState(false)
   const [timerMode, setTimerMode] = useState<"focus" | "break">("focus")
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const [completedSessions, setCompletedSessions] = useState<Record<string, boolean>>({})
+  const [completedSessions, setCompletedSessions] = useLocalStorage<Record<string, boolean>>("calmora_student_sessions", {})
   const [activeResource, setActiveResource] = useState<{ title: string; body: string } | null>(null)
 
   const toggleSession = (subject: string) => {
