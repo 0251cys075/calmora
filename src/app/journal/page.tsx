@@ -12,6 +12,7 @@ import {
 } from "lucide-react"
 import { journalApi, withFallback, isOnline, type JournalEntry } from "@/lib/api"
 import { useLocalStorage } from "@/lib/hooks/useLocalStorage"
+import { validateSchema, journalEntrySchema } from "@/lib/validation"
 
 const prompts = [
   "What are three things you're grateful for today?",
@@ -29,6 +30,7 @@ export default function JournalPage() {
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
   const journalRef = useRef<HTMLTextAreaElement>(null)
 
   const insertTemplate = (template: string) => {
@@ -75,9 +77,16 @@ export default function JournalPage() {
   }, [entries])
 
   const handleSave = () => {
-    if (!journalEntry.trim()) return
-    setSaving(true)
+    setValidationErrors({})
     setSaveError(null)
+
+    const validation = validateSchema(journalEntrySchema, { content: journalEntry })
+    if (!validation.success) {
+      setValidationErrors(validation.errors)
+      return
+    }
+
+    setSaving(true)
     const content = journalEntry.trim()
     const title = content.split("\n")[0].slice(0, 60) || "Untitled"
 
@@ -188,9 +197,14 @@ export default function JournalPage() {
               value={journalEntry}
               onChange={(e) => setJournalEntry(e.target.value)}
               placeholder="Start writing your thoughts..."
-              className="w-full h-48 p-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 resize-none text-sm"
+              className={`w-full h-48 p-4 rounded-xl bg-white/5 border text-white placeholder-white/30 focus:outline-none resize-none text-sm ${
+                validationErrors.content ? "border-rose-500/50 focus:border-rose-500/50" : "border-white/10 focus:border-blue-500/50"
+              }`}
             />
 
+            {validationErrors.content && (
+              <p className="text-xs text-rose-400 mt-2">{validationErrors.content}</p>
+            )}
             {saveError && (
               <p className="text-xs text-amber-400 mt-2">{saveError}</p>
             )}

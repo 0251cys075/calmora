@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { signInWithPopup, signInWithRedirect, getRedirectResult } from "firebase/auth"
 import { getFirebaseAuth } from "@/lib/firebase"
+import { authApi } from "@/lib/api"
 import type { UserData } from "@/lib/api"
 
 interface AuthState {
@@ -21,40 +22,6 @@ function getStoredUser(): UserData | null {
   }
 }
 
-function getStoredAccounts(): Record<string, { name: string; email: string; password: string }> {
-  if (typeof window === "undefined") return {}
-  try {
-    const raw = localStorage.getItem("calmora_accounts")
-    return raw ? JSON.parse(raw) : {}
-  } catch {
-    return {}
-  }
-}
-
-function saveAccount(name: string, email: string, password: string) {
-  const accounts = getStoredAccounts()
-  accounts[email.toLowerCase()] = { name, email: email.toLowerCase(), password }
-  localStorage.setItem("calmora_accounts", JSON.stringify(accounts))
-}
-
-function generateId(): string {
-  return "user_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
-}
-
-function createUserData(name: string, email: string, avatar?: string): UserData {
-  return {
-    id: generateId(),
-    name,
-    email: email.toLowerCase(),
-    calmScore: 850,
-    xp: 1200,
-    level: 8,
-    streak: 5,
-    badges: ["Early Adopter", "Mindful Beginner"],
-    avatar,
-  }
-}
-
 function setUser(user: UserData) {
   localStorage.setItem("calmora_user", JSON.stringify(user))
 }
@@ -66,91 +33,66 @@ export function useAuth() {
     error: null,
   })
 
-  // On mount, restore user from localStorage AND handle Google redirect result
+  // On mount, check authentication status via API
   useEffect(() => {
-    const user = getStoredUser()
-    if (user) {
-      setState({ user, loading: false, error: null })
-      return
+    const checkAuth = async () => {
+      try {
+        // First try localStorage for immediate load
+        const localUser = getStoredUser()
+        if (localUser) {
+          setState({ user: localUser, loading: false, error: null })
+        }
+
+        // Then verify with API with timeout
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Auth check timeout")), 5000)
+        )
+
+        const response = await Promise.race([authApi.me(), timeoutPromise])
+        setUser(response.user)
+        setState({ user: response.user, loading: false, error: null })
+      } catch (error) {
+        // If API fails or times out, use localStorage as fallback
+        const localUser = getStoredUser()
+        if (localUser) {
+          setState({ user: localUser, loading: false, error: null })
+        } else {
+          setState({ user: null, loading: false, error: null })
+        }
+      }
     }
 
-    // Check if we're returning from a Google redirect sign-in
-    const firebase = getFirebaseAuth()
-    if (firebase) {
-      setState((s) => ({ ...s, loading: true }))
-      getRedirectResult(firebase.auth)
-        .then((result) => {
-          if (result?.user) {
-            const firebaseUser = result.user
-            const newUser = createUserData(
-              firebaseUser.displayName || "Calmora User",
-              firebaseUser.email || "user@calmora.app",
-              firebaseUser.photoURL || undefined
-            )
-            setUser(newUser)
-            setState({ user: newUser, loading: false, error: null })
-          } else {
-            setState({ user: null, loading: false, error: null })
-          }
-        })
-        .catch(() => {
-          setState({ user: null, loading: false, error: null })
-        })
-    } else {
-      setState({ user: null, loading: false, error: null })
-    }
+    checkAuth()
   }, [])
 
   const login = useCallback(async (email: string, password: string) => {
     setState((s) => ({ ...s, loading: true, error: null }))
-    await new Promise((r) => setTimeout(r, 400))
 
-    const accounts = getStoredAccounts()
-    const account = accounts[email.toLowerCase()]
-
-    if (!account) {
-      setState((s) => ({ ...s, loading: false, error: "No account found with that email. Please sign up first." }))
+    try {
+      const response = await authApi.login({ email, password })
+      setUser(response.user)
+      setState({ user: response.user, loading: false, error: null })
+      return true
+    } catch (error: any) {
+      const errorMessage = error?.message || "Login failed. Please try again."
+      setState((s) => ({ ...s, loading: false, error: errorMessage }))
       return false
     }
-    if (account.password !== password) {
-      setState((s) => ({ ...s, loading: false, error: "Incorrect password. Please try again." }))
-      return false
-    }
-
-    const user = createUserData(account.name, account.email)
-    setUser(user)
-    setState({ user, loading: false, error: null })
-    return true
   }, [])
 
   const register = useCallback(async (name: string, email: string, password: string) => {
     setState((s) => ({ ...s, loading: true, error: null }))
-    await new Promise((r) => setTimeout(r, 400))
 
-    if (!name.trim()) {
-      setState((s) => ({ ...s, loading: false, error: "Please enter your full name." }))
+    try {
+      const response = await authApi.register({ name, email, password })
+      setUser(response.user)
+      setState({ user: response.user, loading: false, error: null })
+      return true
+    } catch (error: any) {
+      const errorMessage = error?.message || "Registration failed. Please try again."
+      setState((s) => ({ ...s, loading: false, error: errorMessage }))
       return false
     }
-    if (!email.includes("@")) {
-      setState((s) => ({ ...s, loading: false, error: "Please enter a valid email address." }))
-      return false
-    }
-    if (password.length < 6) {
-      setState((s) => ({ ...s, loading: false, error: "Password must be at least 6 characters." }))
-      return false
-    }
-
-    const accounts = getStoredAccounts()
-    if (accounts[email.toLowerCase()]) {
-      setState((s) => ({ ...s, loading: false, error: "An account with this email already exists. Please sign in." }))
-      return false
-    }
-
-    saveAccount(name, email, password)
-    const user = createUserData(name, email)
-    setUser(user)
-    setState({ user, loading: false, error: null })
-    return true
   }, [])
 
   const loginWithGoogle = useCallback(async () => {
@@ -170,11 +112,17 @@ export function useAuth() {
       try {
         const result = await signInWithPopup(firebase.auth, firebase.googleProvider)
         const firebaseUser = result.user
-        const user = createUserData(
-          firebaseUser.displayName || "Calmora User",
-          firebaseUser.email || "user@calmora.app",
-          firebaseUser.photoURL || undefined
-        )
+        const user: UserData = {
+          id: firebaseUser.uid || `google_${Date.now()}`,
+          name: firebaseUser.displayName || "Calmora User",
+          email: firebaseUser.email || "user@calmora.app",
+          calmScore: 850,
+          xp: 1200,
+          level: 8,
+          streak: 5,
+          badges: ["Early Adopter", "Mindful Beginner"],
+          avatar: firebaseUser.photoURL || undefined,
+        }
         setUser(user)
         setState({ user, loading: false, error: null })
         return true
@@ -207,7 +155,16 @@ export function useAuth() {
     setState((s) => ({ ...s, loading: true, error: null }))
     await new Promise((r) => setTimeout(r, 300))
 
-    const user = createUserData("Guest Explorer", "guest@calmora.app")
+    const user: UserData = {
+      id: `guest_${Date.now()}`,
+      name: "Guest Explorer",
+      email: "guest@calmora.app",
+      calmScore: 850,
+      xp: 1200,
+      level: 8,
+      streak: 5,
+      badges: ["Guest"],
+    }
     setUser(user)
     setState({ user, loading: false, error: null })
     return true

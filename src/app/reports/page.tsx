@@ -43,12 +43,16 @@ function loadFromStorage<T>(key: string): T | null {
   }
 }
 
-function getLast7Days(): { label: string; date: Date }[] {
+function getPeriodDays(period: "weekly" | "monthly"): { label: string; date: Date }[] {
+  const count = period === "weekly" ? 7 : 30
   const days: { label: string; date: Date }[] = []
-  for (let i = 6; i >= 0; i--) {
+  for (let i = count - 1; i >= 0; i--) {
     const d = new Date()
     d.setDate(d.getDate() - i)
-    days.push({ label: d.toLocaleDateString("en-US", { weekday: "short" }), date: new Date(d) })
+    const label = period === "weekly"
+      ? d.toLocaleDateString("en-US", { weekday: "short" })
+      : d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    days.push({ label, date: new Date(d) })
   }
   return days
 }
@@ -93,13 +97,17 @@ export default function ReportsPage() {
     })
     const habitScore = allHabitsCount > 0 ? Math.round((habitsCompletedToday / allHabitsCount) * 100) : 0
 
-    const last7Days = getLast7Days()
+    const periodDays = getPeriodDays(activePeriod)
+    const periodCount = periodDays.length
 
-    const dailyMood = last7Days.map(({ label: dayName, date }) => {
+    const dailyMood = periodDays.map(({ label: dayLabel, date }) => {
+      const dayStart = new Date(date)
+      dayStart.setHours(0, 0, 0, 0)
+      const dayEnd = new Date(date)
+      dayEnd.setHours(23, 59, 59, 999)
       const entriesOnDay = moodEntries.filter((e) => {
         const ed = new Date(e.date)
-        return ed.toLocaleDateString("en-US", { weekday: "short" }) === dayName &&
-          dateInRange(ed, new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0), new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59))
+        return ed >= dayStart && ed <= dayEnd
       })
       if (entriesOnDay.length) {
         return entriesOnDay.reduce((s, e) => s + e.mood, 0) / entriesOnDay.length
@@ -107,7 +115,7 @@ export default function ReportsPage() {
       return 0
     })
 
-    const dailyHabits = last7Days.map(({ date: dayDate }) => {
+    const dailyHabits = periodDays.map(({ date: dayDate }) => {
       const dayStart = new Date(dayDate)
       dayStart.setHours(0, 0, 0, 0)
       const dayEnd = new Date(dayDate)
@@ -122,11 +130,14 @@ export default function ReportsPage() {
       return allHabitsCount > 0 ? Math.round((completed / allHabitsCount) * 100) : 0
     })
 
-    const journalDays = last7Days.map(({ label: dayName, date }) => {
+    const journalDays = periodDays.map(({ date }) => {
+      const dayStart = new Date(date)
+      dayStart.setHours(0, 0, 0, 0)
+      const dayEnd = new Date(date)
+      dayEnd.setHours(23, 59, 59, 999)
       return journalEntries.filter((e) => {
         const ed = new Date(e.date)
-        return ed.toLocaleDateString("en-US", { weekday: "short" }) === dayName &&
-          dateInRange(ed, new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0), new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59))
+        return ed >= dayStart && ed <= dayEnd
       }).length > 0
     })
 
@@ -134,13 +145,12 @@ export default function ReportsPage() {
     const avgMood = dailyMood.filter((m) => m > 0)
     const avgMoodVal = avgMood.length > 0 ? avgMood.reduce((s, m) => s + m, 0) / avgMood.length : 0
     const calmScore = allHabitsCount > 0 || moodEntries.length > 0
-      ? Math.round((avgMoodVal / 5) * 40 + (habitScore / 100) * 30 + (journalCount / 7) * 30)
+      ? Math.round((avgMoodVal / 5) * 40 + (habitScore / 100) * 30 + (journalCount / periodCount) * 30)
       : 0
 
     const avgMoodFormatted = avgMoodVal.toFixed(1)
-
-    const prevWeekMood = Math.max(0, avgMoodVal - 0.3)
-    const moodChange = avgMoodVal > 0 ? (avgMoodVal - prevWeekMood).toFixed(1) : "0.0"
+    const prevPeriodMood = Math.max(0, avgMoodVal - 0.3)
+    const moodChange = avgMoodVal > 0 ? (avgMoodVal - prevPeriodMood).toFixed(1) : "0.0"
     const prevHabit = Math.max(0, habitScore - 5)
     const habitChange = allHabitsCount > 0 ? `${habitScore - prevHabit > 0 ? "+" : ""}${habitScore - prevHabit}%` : "0%"
     const prevJournal = Math.max(0, journalCount - 1)
@@ -151,7 +161,7 @@ export default function ReportsPage() {
       hasData,
       avgMood: avgMoodFormatted,
       habitScore: `${habitScore}%`,
-      journalCount: `${journalCount}/7`,
+      journalCount: `${journalCount}/${periodCount}`,
       calmScore,
       moodChange: `${moodChange.startsWith("-") ? "" : "+"}${moodChange}`,
       habitChange,
@@ -159,7 +169,7 @@ export default function ReportsPage() {
       calmChange,
       dailyMood,
       dailyHabits,
-      weeklyData: last7Days.map(({ label: day }, i) => ({
+      weeklyData: periodDays.map(({ label: day }, i) => ({
         day,
         mood: Math.round(dailyMood[i]),
         habits: dailyHabits[i],
@@ -170,7 +180,7 @@ export default function ReportsPage() {
       })),
       row: { avgMoodVal, habitScore, journalCount, calmScore },
     }
-  }, [])
+  }, [activePeriod])
 
   const handleDownload = useCallback(() => {
     const header = "Metric,Value\n"
@@ -259,7 +269,7 @@ export default function ReportsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <GlassCard>
           <h2 className="text-lg font-semibold text-white mb-4">Mood Trend</h2>
-          <div className="flex items-end justify-between h-32 gap-1">
+          <div className={`flex items-end h-32 ${activePeriod === "monthly" ? "gap-0.5" : "gap-1"}`}>
             {weeklyData.map((d) => (
               <div key={d.day} className="flex-1 flex flex-col items-center gap-1">
                 <motion.div
@@ -269,7 +279,7 @@ export default function ReportsPage() {
                   className="w-full rounded-lg bg-gradient-to-t from-amber-500/50 to-orange-500/30"
                   style={{ minHeight: 0 }}
                 />
-                <span className="text-[10px] text-white/30">{d.day}</span>
+                <span className={`text-white/30 ${activePeriod === "monthly" ? "text-[6px]" : "text-[10px]"}`}>{d.day}</span>
               </div>
             ))}
           </div>
@@ -277,7 +287,7 @@ export default function ReportsPage() {
 
         <GlassCard>
           <h2 className="text-lg font-semibold text-white mb-4">Habit Consistency</h2>
-          <div className="flex items-end justify-between h-32 gap-1">
+          <div className={`flex items-end h-32 ${activePeriod === "monthly" ? "gap-0.5" : "gap-1"}`}>
             {weeklyData.map((d) => (
               <div key={d.day} className="flex-1 flex flex-col items-center gap-1">
                 <motion.div
@@ -287,7 +297,7 @@ export default function ReportsPage() {
                   className="w-full rounded-lg bg-gradient-to-t from-emerald-500/50 to-teal-500/30"
                   style={{ minHeight: 0 }}
                 />
-                <span className="text-[10px] text-white/30">{d.day}</span>
+                <span className={`text-white/30 ${activePeriod === "monthly" ? "text-[6px]" : "text-[10px]"}`}>{d.day}</span>
               </div>
             ))}
           </div>

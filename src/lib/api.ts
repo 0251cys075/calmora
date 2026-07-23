@@ -1,16 +1,7 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api"
 
 interface ApiOptions extends RequestInit {
   skipAuth?: boolean
-}
-
-function getToken(): string | null {
-  if (typeof window === "undefined") return null
-  try {
-    return localStorage.getItem("calmora_token")
-  } catch {
-    return null
-  }
 }
 
 export async function api<T = unknown>(endpoint: string, options: ApiOptions = {}): Promise<T> {
@@ -20,31 +11,48 @@ export async function api<T = unknown>(endpoint: string, options: ApiOptions = {
     ...(fetchOptions.headers as Record<string, string>),
   }
 
-  if (!skipAuth) {
-    const token = getToken()
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`
-    }
-  }
-
   const res = await fetch(`${API_BASE}${endpoint}`, {
     ...fetchOptions,
     headers,
+    credentials: "include", // Include HTTP-only cookies
   })
 
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ error: "Network error" }))
+    let errorMessage = "An unexpected error occurred"
+    try {
+      const errorData = await res.json()
+      errorMessage = errorData.error || errorMessage
+    } catch {
+      // If JSON parsing fails, use status-based messages
+      errorMessage = getStatusMessage(res.status)
+    }
+
     if (res.status === 401) {
       if (typeof window !== "undefined") {
-        localStorage.removeItem("calmora_token")
         localStorage.removeItem("calmora_user")
         window.location.href = "/auth"
       }
     }
-    throw new ApiError(error.error || `Request failed with status ${res.status}`, res.status)
+
+    throw new ApiError(errorMessage, res.status)
   }
 
   return res.json()
+}
+
+function getStatusMessage(status: number): string {
+  const messages: Record<number, string> = {
+    400: "Invalid request. Please check your input.",
+    401: "You need to sign in to access this feature.",
+    403: "You don't have permission to perform this action.",
+    404: "The requested resource was not found.",
+    409: "This resource already exists.",
+    429: "Too many requests. Please wait a moment and try again.",
+    500: "Server error. Please try again later.",
+    502: "Service temporarily unavailable. Please try again.",
+    503: "Service unavailable for maintenance. Please check back soon.",
+  }
+  return messages[status] || `Request failed with status ${status}`
 }
 
 export class ApiError extends Error {

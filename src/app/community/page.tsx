@@ -3,11 +3,23 @@
 import { GlassCard } from "@/components/ui/glass-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { motion } from "framer-motion"
-import { Heart, MessageCircle, Sparkles, Users, Send, Flame, Share2 } from "lucide-react"
-import { useState } from "react"
+import { motion, AnimatePresence } from "framer-motion"
+import { Heart, MessageCircle, Sparkles, Users, Send, Flame, Share2, X, Plus } from "lucide-react"
+import { useState, useCallback } from "react"
+import { useLocalStorage } from "@/lib/hooks/useLocalStorage"
 
-const posts = [
+interface Post {
+  id: number
+  author: string
+  badge: string
+  time: string
+  content: string
+  likes: number
+  comments: number
+  tags: string[]
+}
+
+const defaultPosts: Post[] = [
   {
     id: 1,
     author: "CalmSeeker42",
@@ -50,6 +62,9 @@ const posts = [
   },
 ]
 
+const randomBadges = ["🌱 Explorer", "🌟 Veteran", "💎 Champion", "🌊 Wave Rider", "🔥 Phoenix", "🌙 Moon Seeker"]
+const randomNames = ["ZenMaster", "PeacefulSoul", "MindfulOne", "CalmVibes", "SerenityNow", "InnerPeace", "BreatheDeep", "StillWaters"]
+
 const prompts = [
   "What small win are you celebrating today?",
   "Share one thing you're grateful for",
@@ -58,10 +73,56 @@ const prompts = [
 ]
 
 export default function CommunityPage() {
+  const [posts, setPosts] = useLocalStorage<Post[]>("calmora_community_posts", defaultPosts)
   const [liked, setLiked] = useState<number[]>([])
   const [openComments, setOpenComments] = useState<number[]>([])
   const [commentInputs, setCommentInputs] = useState<Record<number, string>>({})
   const [postComments, setPostComments] = useState<Record<number, { author: string; content: string; time: string }[]>>({})
+  const [promptInput, setPromptInput] = useState("")
+  const [showNewPost, setShowNewPost] = useState(false)
+  const [newPostContent, setNewPostContent] = useState("")
+  const [newPostTags, setNewPostTags] = useState("")
+
+  const sharePrompt = useCallback(() => {
+    const text = promptInput.trim()
+    if (!text) return
+    const randomName = randomNames[Math.floor(Math.random() * randomNames.length)]
+    const randomBadge = randomBadges[Math.floor(Math.random() * randomBadges.length)]
+    const newPost: Post = {
+      id: Date.now(),
+      author: "You",
+      badge: randomBadge,
+      time: "Just now",
+      content: text,
+      likes: 0,
+      comments: 0,
+      tags: ["daily-prompt"],
+    }
+    setPosts((prev) => [newPost, ...prev])
+    setPromptInput("")
+  }, [promptInput, setPosts])
+
+  const createNewPost = useCallback(() => {
+    const content = newPostContent.trim()
+    if (!content) return
+    const tags = newPostTags.split(",").map((t) => t.trim()).filter(Boolean)
+    const randomName = randomNames[Math.floor(Math.random() * randomNames.length)]
+    const randomBadge = randomBadges[Math.floor(Math.random() * randomBadges.length)]
+    const newPost: Post = {
+      id: Date.now(),
+      author: randomName,
+      badge: randomBadge,
+      time: "Just now",
+      content,
+      likes: 0,
+      comments: 0,
+      tags,
+    }
+    setPosts((prev) => [newPost, ...prev])
+    setNewPostContent("")
+    setNewPostTags("")
+    setShowNewPost(false)
+  }, [newPostContent, newPostTags, setPosts])
 
   const toggleComments = (postId: number) => {
     setOpenComments((prev) => prev.includes(postId) ? prev.filter((id) => id !== postId) : [...prev, postId])
@@ -90,7 +151,7 @@ export default function CommunityPage() {
             <h1 className="text-3xl font-bold text-white">Community</h1>
             <p className="text-white/50 mt-1">Share, support, and grow together</p>
           </div>
-          <Button variant="primary" icon={<Sparkles className="w-4 h-4" />}>New Post</Button>
+          <Button variant="primary" icon={<Sparkles className="w-4 h-4" />} onClick={() => setShowNewPost(true)}>New Post</Button>
         </div>
       </motion.div>
 
@@ -112,10 +173,13 @@ export default function CommunityPage() {
           <div className="flex gap-2">
             <input
               type="text"
+              value={promptInput}
+              onChange={(e) => setPromptInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") sharePrompt() }}
               placeholder="Share your thoughts..."
               className="flex-1 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 text-sm"
             />
-            <Button variant="primary" icon={<Send className="w-4 h-4" />}>Share</Button>
+            <Button variant="primary" icon={<Send className="w-4 h-4" />} onClick={sharePrompt}>Share</Button>
           </div>
         </GlassCard>
       </motion.div>
@@ -210,6 +274,51 @@ export default function CommunityPage() {
       <div className="text-center py-4">
         <Button variant="glass">Load More Posts</Button>
       </div>
+
+      <AnimatePresence>
+        {showNewPost && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            onClick={() => setShowNewPost(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative w-full max-w-lg rounded-2xl border border-white/10 shadow-2xl bg-[#0a0f1e] p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-white">New Post</h3>
+                <button onClick={() => setShowNewPost(false)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/20 transition-all">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <textarea
+                value={newPostContent}
+                onChange={(e) => setNewPostContent(e.target.value)}
+                placeholder="What's on your mind?"
+                rows={4}
+                className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 text-sm resize-none"
+              />
+              <input
+                type="text"
+                value={newPostTags}
+                onChange={(e) => setNewPostTags(e.target.value)}
+                placeholder="Tags (comma separated): meditation, gratitude"
+                className="w-full mt-3 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 text-sm"
+              />
+              <div className="flex justify-end gap-2 mt-4">
+                <Button variant="glass" onClick={() => setShowNewPost(false)}>Cancel</Button>
+                <Button variant="primary" onClick={createNewPost}>Post</Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

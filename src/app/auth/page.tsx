@@ -7,6 +7,7 @@ import { useState, useEffect } from "react"
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Brain, Heart, Shield, User, AlertCircle, Zap } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/hooks/useAuth"
+import { validateSchema, registerSchema, loginSchema } from "@/lib/validation"
 
 export default function AuthPage() {
   const router = useRouter()
@@ -17,6 +18,7 @@ export default function AuthPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [submitting, setSubmitting] = useState(false)
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -27,9 +29,20 @@ export default function AuthPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     clearError()
-    if (!email || !password || (!isLogin && !name)) {
+    setValidationErrors({})
+
+    const data = isLogin
+      ? { email, password }
+      : { name, email, password }
+
+    const schema = isLogin ? loginSchema : registerSchema
+    const validation = validateSchema(schema, data)
+
+    if (!validation.success) {
+      setValidationErrors(validation.errors)
       return
     }
+
     setSubmitting(true)
     let success: boolean
     if (isLogin) {
@@ -133,9 +146,14 @@ export default function AuthPage() {
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="John Doe"
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 text-sm"
+                      className={`w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border text-white placeholder-white/30 focus:outline-none text-sm ${
+                        validationErrors.name ? "border-rose-500/50 focus:border-rose-500/50" : "border-white/10 focus:border-blue-500/50"
+                      }`}
                     />
                   </div>
+                  {validationErrors.name && (
+                    <p className="text-xs text-rose-400 mt-1">{validationErrors.name}</p>
+                  )}
                 </div>
               )}
 
@@ -148,9 +166,14 @@ export default function AuthPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 text-sm"
+                    className={`w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border text-white placeholder-white/30 focus:outline-none text-sm ${
+                      validationErrors.email ? "border-rose-500/50 focus:border-rose-500/50" : "border-white/10 focus:border-blue-500/50"
+                    }`}
                   />
                 </div>
+                {validationErrors.email && (
+                  <p className="text-xs text-rose-400 mt-1">{validationErrors.email}</p>
+                )}
               </div>
 
               <div>
@@ -162,7 +185,9 @@ export default function AuthPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 text-sm"
+                    className={`w-full pl-10 pr-10 py-2.5 rounded-xl bg-white/5 border text-white placeholder-white/30 focus:outline-none text-sm ${
+                      validationErrors.password ? "border-rose-500/50 focus:border-rose-500/50" : "border-white/10 focus:border-blue-500/50"
+                    }`}
                   />
                   <button
                     type="button"
@@ -172,6 +197,9 @@ export default function AuthPage() {
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+                {validationErrors.password && (
+                  <p className="text-xs text-rose-400 mt-1">{validationErrors.password}</p>
+                )}
               </div>
 
               <Button type="submit" className="w-full" size="lg" loading={submitting}>

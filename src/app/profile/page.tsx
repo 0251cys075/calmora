@@ -10,6 +10,7 @@ import {
   Shield, Heart, Brain, Target,
   Settings, LogOut, Edit3
 } from "lucide-react"
+import { useAuth } from "@/lib/hooks/useAuth"
 import Link from "next/link"
 
 const badges = [
@@ -30,30 +31,46 @@ const achievements = [
 ]
 
 export default function ProfilePage() {
+  const { user, logout } = useAuth()
+
+  const initials = user?.name
+    ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
+    : "?"
+
+  const xpInLevel = (user?.xp ?? 0) % 500
+  const nextLevelXp = ((user?.level ?? 1) * 500)
+  const xpPercent = Math.min(Math.round((xpInLevel / (user?.level ? 500 : 1)) * 100), 100)
+
+  const calmPercent = Math.min(Math.round(((user?.calmScore ?? 0) / 1000) * 100), 100)
+
+  const memberDate = user?.id
+    ? new Date(parseInt(user.id.replace(/\D/g, "").slice(0, 12), 10) || Date.now()).toLocaleDateString("en-US", { month: "long", year: "numeric" })
+    : "July 2026"
+
   return (
     <div className="space-y-6">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-4">
             <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-3xl font-bold text-white shadow-lg shadow-blue-500/25">
-              JD
+              {initials}
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white">John Doe</h1>
-              <p className="text-white/50 text-sm">Member since July 2026</p>
+              <h1 className="text-2xl font-bold text-white">{user?.name ?? "Guest"}</h1>
+              <p className="text-white/50 text-sm">Member since {memberDate}</p>
               <div className="flex items-center gap-2 mt-2">
                 <Badge variant="premium" size="sm">
-                  <Trophy className="w-3 h-3" /> Level 8
+                  <Trophy className="w-3 h-3" /> Level {user?.level ?? 1}
                 </Badge>
                 <Badge variant="success" size="sm">
-                  <Flame className="w-3 h-3" /> 12 Day Streak
+                  <Flame className="w-3 h-3" /> {user?.streak ?? 0} Day Streak
                 </Badge>
               </div>
             </div>
           </div>
           <div className="flex gap-2">
             <Button variant="glass" size="sm" icon={<Settings className="w-4 h-4" />}>Settings</Button>
-            <Button variant="glass" size="sm" icon={<LogOut className="w-4 h-4" />}>Sign Out</Button>
+            <Button variant="glass" size="sm" icon={<LogOut className="w-4 h-4" />} onClick={logout}>Sign Out</Button>
           </div>
         </div>
       </motion.div>
@@ -70,24 +87,24 @@ export default function ProfilePage() {
               <div>
                 <div className="flex justify-between text-sm mb-1">
                   <span className="text-white/60">Calm Score</span>
-                  <span className="text-white font-medium">850</span>
+                  <span className="text-white font-medium">{user?.calmScore ?? 0}</span>
                 </div>
-                <Progress value={85} variant="gradient" size="md" />
+                <Progress value={calmPercent} variant="gradient" size="md" />
               </div>
               <div>
                 <div className="flex justify-between text-sm mb-1">
                   <span className="text-white/60">XP Progress</span>
-                  <span className="text-white font-medium">750 / 1,000</span>
+                  <span className="text-white font-medium">{xpInLevel} / {nextLevelXp}</span>
                 </div>
-                <Progress value={75} variant="success" size="md" />
+                <Progress value={xpPercent} variant="success" size="md" />
               </div>
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-center">
-                  <p className="text-lg font-bold text-gradient-amber">12</p>
+                  <p className="text-lg font-bold text-gradient-amber">{user?.badges?.length ?? 0}</p>
                   <p className="text-xs text-white/40">Badges</p>
                 </div>
                 <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-center">
-                  <p className="text-lg font-bold text-gradient-emerald">2,450</p>
+                  <p className="text-lg font-bold text-gradient-emerald">{(user?.xp ?? 0) * 2}</p>
                   <p className="text-xs text-white/40">Calm Coins</p>
                 </div>
               </div>
