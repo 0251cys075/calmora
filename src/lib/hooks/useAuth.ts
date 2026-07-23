@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { signInWithPopup, signInWithRedirect, getRedirectResult } from "firebase/auth"
+import { signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged } from "firebase/auth"
 import { getFirebaseAuth } from "@/lib/firebase"
 import { authApi } from "@/lib/api"
 import type { UserData } from "@/lib/api"
@@ -33,7 +33,7 @@ export function useAuth() {
     error: null,
   })
 
-  // On mount, check authentication status via API
+  // On mount, check authentication status via API and listen for Firebase auth changes
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -51,7 +51,7 @@ export function useAuth() {
         const response = await Promise.race([authApi.me(), timeoutPromise])
         setUser(response.user)
         setState({ user: response.user, loading: false, error: null })
-      } catch (error) {
+      } catch {
         // If API fails or times out, use localStorage as fallback
         const localUser = getStoredUser()
         if (localUser) {
@@ -63,6 +63,25 @@ export function useAuth() {
     }
 
     checkAuth()
+
+    // Listen for Firebase auth state changes (e.g. session cleared from another tab)
+    const firebase = getFirebaseAuth()
+    let unsubscribe: (() => void) | undefined
+    if (firebase) {
+      unsubscribe = onAuthStateChanged(firebase.auth, (firebaseUser) => {
+        if (!firebaseUser) {
+          const localUser = getStoredUser()
+          if (localUser) {
+            localStorage.removeItem("calmora_user")
+            setState({ user: null, loading: false, error: null })
+          }
+        }
+      })
+    }
+
+    return () => {
+      if (unsubscribe) unsubscribe()
+    }
   }, [])
 
   const login = useCallback(async (email: string, password: string) => {
@@ -170,9 +189,24 @@ export function useAuth() {
     return true
   }, [])
 
-  const logout = useCallback(() => {
-    localStorage.removeItem("calmora_user")
-    setState({ user: null, loading: false, error: null })
+  const logout = useCallback(async () => {
+    try {
+      // Sign out of Firebase (for Google Sign-In users)
+      const firebase = getFirebaseAuth()
+      if (firebase) {
+        await signOut(firebase.auth)
+      }
+
+      // Clear JWT cookie on the server
+      try {
+        await fetch("/api/auth/logout", { method: "POST" })
+      } catch {
+        // Ignore if the API is unavailable
+      }
+    } finally {
+      localStorage.removeItem("calmora_user")
+      setState({ user: null, loading: false, error: null })
+    }
   }, [])
 
   const clearError = useCallback(() => {

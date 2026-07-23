@@ -10,6 +10,7 @@ import {
   Brain, Heart, CheckCircle2, Zap, Lock, Users, Activity
 } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/hooks/useAuth"
 
 const container = {
@@ -26,11 +27,12 @@ const item = {
 }
 
 export function LandingPage() {
+  const router = useRouter()
   const { guestLogin } = useAuth()
 
   const handleGuestLogin = async () => {
     await guestLogin()
-    window.location.href = "/"
+    router.push("/")
   }
 
   const benefits = [

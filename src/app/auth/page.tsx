@@ -22,7 +22,7 @@ export default function AuthPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      router.push("/")
+      router.replace("/")
     }
   }, [isAuthenticated, router])
 
@@ -52,7 +52,7 @@ export default function AuthPage() {
     }
     setSubmitting(false)
     if (success) {
-      router.push("/")
+      router.replace("/")
     }
   }
 
@@ -62,7 +62,7 @@ export default function AuthPage() {
     const success = await loginWithGoogle()
     setSubmitting(false)
     if (success) {
-      router.push("/")
+      router.replace("/")
     }
   }
 
@@ -72,7 +72,7 @@ export default function AuthPage() {
     const success = await guestLogin()
     setSubmitting(false)
     if (success) {
-      router.push("/")
+      router.replace("/")
     }
   }
 

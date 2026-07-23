@@ -44,10 +44,10 @@ export function Sidebar() {
   const { user, logout, isAuthenticated } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  const handleLogout = () => {
-    logout()
+  const handleLogout = async () => {
+    await logout()
     setMobileOpen(false)
-    router.push("/auth")
+    router.replace("/auth")
   }
 
   return (

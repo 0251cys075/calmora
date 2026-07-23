@@ -18,7 +18,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     if (loading) return
     const isProtected = protectedRoutes.some((route) => pathname.startsWith(route))
     if (isProtected && !isAuthenticated) {
-      router.push("/auth")
+      router.replace("/auth")
     }
   }, [pathname, loading, isAuthenticated, router])
 

@@ -55,9 +55,9 @@ export default function ProfilePage() {
     ? new Date(parseInt(user.id.replace(/\D/g, "").slice(0, 12), 10) || Date.now()).toLocaleDateString("en-US", { month: "long", year: "numeric" })
     : "July 2026"
 
-  const handleSignOut = useCallback(() => {
-    logout()
-    router.push("/auth")
+  const handleSignOut = useCallback(async () => {
+    await logout()
+    router.replace("/auth")
   }, [logout, router])
 
   const handleShare = useCallback(() => {
