@@ -1,373 +1,251 @@
 "use client"
 
+import { motion } from "framer-motion"
+import { Sparkles, Search, Bell, MessageSquare, Trophy, Shield, TrendingUp, Loader2 } from "lucide-react"
+import { useState, useEffect, useCallback, useRef } from "react"
+import { Button } from "@/components/ui/button"
 import { GlassCard } from "@/components/ui/glass-card"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { motion, AnimatePresence } from "framer-motion"
-import { Heart, MessageCircle, Sparkles, Users, Send, Flame, Share2, X, Plus } from "lucide-react"
-import { useState, useCallback } from "react"
-import { useLocalStorage } from "@/lib/hooks/useLocalStorage"
-
-interface Post {
-  id: number
-  author: string
-  badge: string
-  time: string
-  content: string
-  likes: number
-  comments: number
-  tags: string[]
-}
-
-const defaultPosts: Post[] = [
-  {
-    id: 1,
-    author: "CalmSeeker42",
-    badge: "🌟 Veteran",
-    time: "2h ago",
-    content: "Completed my 21-day meditation challenge! It was tough but so worth it. Feeling more centered and peaceful than ever. Remember, consistency > perfection. You've got this! 🙏",
-    likes: 24,
-    comments: 8,
-    tags: ["meditation", "21-day-challenge", "mindfulness"],
-  },
-  {
-    id: 2,
-    author: "MindfulMornings",
-    badge: "🌱 Rising Star",
-    time: "4h ago",
-    content: "Today's gratitude: Woke up to a beautiful sunrise, had a peaceful cup of tea, and my morning meditation felt deeper than usual. What are you grateful for today?",
-    likes: 18,
-    comments: 12,
-    tags: ["gratitude", "morning-routine"],
-  },
-  {
-    id: 3,
-    author: "BreathingEasy",
-    badge: "💎 Champion",
-    time: "6h ago",
-    content: "For anyone struggling with anxiety right now: You are not alone. Take a deep breath with me. In for 4... hold for 4... out for 6. You are safe. This feeling will pass.",
-    likes: 42,
-    comments: 15,
-    tags: ["anxiety", "support", "breathing"],
-  },
-  {
-    id: 4,
-    author: "GrowthJourney",
-    badge: "🌟 Veteran",
-    time: "8h ago",
-    content: "Day 15 of my Dopamine Detox challenge. The first week was brutal but now I'm finding joy in simple things again. Reading a physical book, going for walks, having real conversations. Highly recommend!",
-    likes: 31,
-    comments: 9,
-    tags: ["dopamine-detox", "challenge"],
-  },
-]
-
-const randomBadges = ["🌱 Explorer", "🌟 Veteran", "💎 Champion", "🌊 Wave Rider", "🔥 Phoenix", "🌙 Moon Seeker"]
-const randomNames = ["ZenMaster", "PeacefulSoul", "MindfulOne", "CalmVibes", "SerenityNow", "InnerPeace", "BreatheDeep", "StillWaters"]
+import { PostCard } from "@/components/community/PostCard"
+import { PostComposer } from "@/components/community/PostComposer"
+import { Leaderboard } from "@/components/community/Leaderboard"
+import { SearchModal } from "@/components/community/SearchModal"
+import { NotificationPanel } from "@/components/community/NotificationPanel"
+import { MessageModal } from "@/components/community/MessageModal"
+import { ModerationPanel } from "@/components/community/ModerationPanel"
+import { communityApi } from "@/lib/community-api"
+import { useAuth } from "@/lib/hooks/useAuth"
+import type { PostData } from "@/lib/community-api"
 
 const prompts = [
   "What small win are you celebrating today?",
   "Share one thing you're grateful for",
   "What's your favorite calming activity?",
   "A piece of advice for your past self",
+  "What self-care practice made a difference today?",
+  "Share a quote that inspires your wellness journey",
 ]
-
-const sampleBadges = ["🌟 Veteran", "🌱 Rising Star", "💎 Champion", "🌊 Wave Rider", "🔥 Phoenix", "🌙 Moon Seeker"]
-const sampleNames = ["CalmSeeker42", "MindfulMornings", "BreathingEasy", "GrowthJourney", "ZenMaster", "PeacefulSoul"]
-const sampleContents = [
-  "Just hit a new milestone in my wellness journey! Consistency is key. 🎯",
-  "Taking a moment to appreciate the little things today. What are you grateful for?",
-  "Deep breathing exercises have completely changed my morning routine. Try it!",
-  "Week 3 of my 21-day challenge and I'm feeling stronger every day. 💪",
-  "Remember: progress, not perfection. Every small step counts.",
-  "Spent 20 minutes in nature today. Best therapy there is. 🌿",
-]
-const sampleTags = [
-  ["wellness", "milestone"],
-  ["gratitude", "mindfulness"],
-  ["breathing", "morning-routine"],
-  ["challenge", "growth"],
-  ["motivation", "mindset"],
-  ["nature", "self-care"],
-]
-
-const LOAD_MORE_COUNT = 3
 
 export default function CommunityPage() {
-  const [posts, setPosts] = useLocalStorage<Post[]>("calmora_community_posts", defaultPosts)
-  const [liked, setLiked] = useLocalStorage<number[]>("calmora_community_liked", [])
-  const [openComments, setOpenComments] = useState<number[]>([])
-  const [commentInputs, setCommentInputs] = useState<Record<number, string>>({})
-  const [postComments, setPostComments] = useLocalStorage<Record<number, { author: string; content: string; time: string }[]>>("calmora_community_comments", {})
-  const [promptInput, setPromptInput] = useState("")
-  const [showNewPost, setShowNewPost] = useState(false)
-  const [newPostContent, setNewPostContent] = useState("")
-  const [newPostTags, setNewPostTags] = useState("")
-  const [loadedCount, setLoadedCount] = useState(defaultPosts.length)
-  const [allExhausted, setAllExhausted] = useState(false)
+  const { user } = useAuth()
+  const [posts, setPosts] = useState<PostData[]>([])
+  const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [tagFilter, setTagFilter] = useState("")
+  const [showSearch, setShowSearch] = useState(false)
+  const [showNotifications, setShowNotifications] = useState(false)
+  const [showMessages, setShowMessages] = useState(false)
+  const [showModeration, setShowModeration] = useState(false)
+  const observerRef = useRef<IntersectionObserver | null>(null)
+  const loadMoreRef = useRef<HTMLDivElement>(null)
 
-  const sharePrompt = useCallback(() => {
-    const text = promptInput.trim()
-    if (!text) return
-    const randomName = randomNames[Math.floor(Math.random() * randomNames.length)]
-    const randomBadge = randomBadges[Math.floor(Math.random() * randomBadges.length)]
-    const newPost: Post = {
-      id: Date.now(),
-      author: "You",
-      badge: randomBadge,
-      time: "Just now",
-      content: text,
-      likes: 0,
-      comments: 0,
-      tags: ["daily-prompt"],
+  const loadPosts = useCallback(async (pageNum: number, append = false) => {
+    if (pageNum === 1) setLoading(true)
+    else setLoadingMore(true)
+    try {
+      const res = await communityApi.getFeed(pageNum, tagFilter || undefined)
+      if (append) {
+        setPosts((prev) => [...prev, ...res.posts])
+      } else {
+        setPosts(res.posts)
+      }
+      setHasMore(res.pagination.hasMore)
+    } catch {} finally {
+      setLoading(false)
+      setLoadingMore(false)
     }
-    setPosts((prev) => [newPost, ...prev])
-    setPromptInput("")
-  }, [promptInput, setPosts])
+  }, [tagFilter])
 
-  const createNewPost = useCallback(() => {
-    const content = newPostContent.trim()
-    if (!content) return
-    const tags = newPostTags.split(",").map((t) => t.trim()).filter(Boolean)
-    const randomName = randomNames[Math.floor(Math.random() * randomNames.length)]
-    const randomBadge = randomBadges[Math.floor(Math.random() * randomBadges.length)]
-    const newPost: Post = {
-      id: Date.now(),
-      author: randomName,
-      badge: randomBadge,
-      time: "Just now",
-      content,
-      likes: 0,
-      comments: 0,
-      tags,
-    }
-    setPosts((prev) => [newPost, ...prev])
-    setNewPostContent("")
-    setNewPostTags("")
-    setShowNewPost(false)
-  }, [newPostContent, newPostTags, setPosts])
+  useEffect(() => {
+    loadPosts(1)
+    setPage(1)
+  }, [tagFilter, loadPosts])
 
-  const toggleComments = (postId: number) => {
-    setOpenComments((prev) => prev.includes(postId) ? prev.filter((id) => id !== postId) : [...prev, postId])
+  // Infinite scroll
+  useEffect(() => {
+    if (observerRef.current) observerRef.current.disconnect()
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore) {
+          const nextPage = page + 1
+          setPage(nextPage)
+          loadPosts(nextPage, true)
+        }
+      },
+      { threshold: 0.1 }
+    )
+    if (loadMoreRef.current) observerRef.current.observe(loadMoreRef.current)
+    return () => observerRef.current?.disconnect()
+  }, [hasMore, loadingMore, page, loadPosts])
+
+  const handlePostCreated = (post: PostData) => {
+    setPosts((prev) => [post, ...prev])
   }
 
-  const submitComment = (postId: number) => {
-    const text = commentInputs[postId]?.trim()
-    if (!text) return
-    const comment = {
-      author: "You",
-      content: text,
-      time: "Just now",
-    }
-    setPostComments((prev) => ({
-      ...prev,
-      [postId]: [...(prev[postId] || []), comment],
-    }))
-    setCommentInputs((prev) => ({ ...prev, [postId]: "" }))
+  const handlePostUpdated = (updatedPost: PostData) => {
+    setPosts((prev) => prev.map((p) => p._id === updatedPost._id ? updatedPost : p))
   }
 
-  const loadMorePosts = useCallback(() => {
-    const nextBatch = Array.from({ length: LOAD_MORE_COUNT }, (_, i) => {
-      const idx = (loadedCount + i) % sampleContents.length
-      return {
-        id: Date.now() + i,
-        author: sampleNames[idx % sampleNames.length],
-        badge: sampleBadges[idx % sampleBadges.length],
-        time: `${Math.floor(Math.random() * 12) + 1}h ago`,
-        content: sampleContents[idx],
-        likes: Math.floor(Math.random() * 30) + 5,
-        comments: Math.floor(Math.random() * 10),
-        tags: sampleTags[idx % sampleTags.length],
-      } as Post
-    })
-    setPosts((prev) => [...prev, ...nextBatch])
-    setLoadedCount((prev) => {
-      const next = prev + LOAD_MORE_COUNT
-      if (next >= 50) setAllExhausted(true)
-      return next
-    })
-  }, [loadedCount, setPosts])
+  const handlePostDeleted = (id: string) => {
+    setPosts((prev) => prev.filter((p) => p._id !== id))
+  }
+
+  const isAdmin = (user as any)?.isAdmin || false
+  const todayPrompt = prompts[new Date().getDate() % prompts.length]
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-white">Community</h1>
             <p className="text-white/50 mt-1">Share, support, and grow together</p>
           </div>
-          <Button variant="primary" icon={<Sparkles className="w-4 h-4" />} onClick={() => setShowNewPost(true)}>New Post</Button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setShowSearch(true)} className="p-2 rounded-xl bg-white/5 border border-white/10 text-white/50 hover:text-white hover:bg-white/10 transition-all">
+              <Search className="w-5 h-5" />
+            </button>
+            <button onClick={() => setShowNotifications(true)} className="p-2 rounded-xl bg-white/5 border border-white/10 text-white/50 hover:text-white hover:bg-white/10 transition-all relative">
+              <Bell className="w-5 h-5" />
+            </button>
+            <button onClick={() => setShowMessages(true)} className="p-2 rounded-xl bg-white/5 border border-white/10 text-white/50 hover:text-white hover:bg-white/10 transition-all">
+              <MessageSquare className="w-5 h-5" />
+            </button>
+            {isAdmin && (
+              <button onClick={() => setShowModeration(true)} className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500/20 transition-all">
+                <Shield className="w-5 h-5" />
+              </button>
+            )}
+          </div>
         </div>
       </motion.div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-      >
+      {/* Daily Prompt */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
         <GlassCard>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="flex-1">
-              <p className="text-sm text-white/50">Today's Prompt</p>
-              <p className="text-white font-medium">{prompts[new Date().getDate() % prompts.length]}</p>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30 flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-amber-400" />
             </div>
-            <Badge variant="info">
-              <Sparkles className="w-3 h-3" /> Daily Prompt
-            </Badge>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <p className="text-sm text-white/50">Today's Prompt</p>
+                <Badge variant="premium" size="sm">Daily</Badge>
+              </div>
+              <p className="text-white font-medium mt-0.5">{todayPrompt}</p>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={promptInput}
-              onChange={(e) => setPromptInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") sharePrompt() }}
-              placeholder="Share your thoughts..."
-              className="flex-1 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 text-sm"
-            />
-            <Button variant="primary" icon={<Send className="w-4 h-4" />} onClick={sharePrompt}>Share</Button>
-          </div>
+          <PostComposer onPostCreated={handlePostCreated} compact />
         </GlassCard>
       </motion.div>
 
-      <div className="space-y-4">
-        {posts.map((post) => (
-          <motion.div
-            key={post.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 + post.id * 0.05 }}
-          >
-            <GlassCard>
-              <div className="flex items-start gap-3 mb-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-semibold text-sm">
-                  {post.author[0]}
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-white">{post.author}</span>
-                    <Badge variant="default" size="sm">{post.badge}</Badge>
-                    <span className="text-xs text-white/30 ml-auto">{post.time}</span>
-                  </div>
-                  <p className="text-sm text-white/70 mt-2">{post.content}</p>
-                  <div className="flex gap-2 mt-2">
-                    {post.tags.map((tag) => (
-                      <span key={tag} className="text-xs text-blue-400/80 bg-blue-500/10 px-2 py-0.5 rounded-full">
-                        #{tag}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-4 mt-3 pt-3 border-t border-white/10">
-                    <button
-                      onClick={() => setLiked((prev) => prev.includes(post.id) ? prev.filter((id) => id !== post.id) : [...prev, post.id])}
-                      className={`flex items-center gap-1 text-sm transition-all ${
-                        liked.includes(post.id) ? "text-rose-400" : "text-white/40 hover:text-rose-400"
-                      }`}
-                    >
-                      <Heart className={`w-4 h-4 ${liked.includes(post.id) ? "fill-current" : ""}`} />
-                      {post.likes + (liked.includes(post.id) ? 1 : 0)}
-                    </button>
-                    <button onClick={() => toggleComments(post.id)} className="flex items-center gap-1 text-sm text-white/40 hover:text-white transition-all">
-                      <MessageCircle className="w-4 h-4" />
-                      {post.comments + (postComments[post.id]?.length || 0)}
-                    </button>
-                    <button className="flex items-center gap-1 text-sm text-white/40 hover:text-white transition-all ml-auto">
-                      <Share2 className="w-4 h-4" />
-                      Share
-                    </button>
-                  </div>
-                  {openComments.includes(post.id) && (
-                    <div className="mt-3 pt-3 border-t border-white/10 space-y-3">
-                      {(postComments[post.id] || []).map((c, ci) => (
-                        <div key={ci} className="flex gap-2">
-                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-semibold text-[10px] flex-shrink-0 mt-0.5">
-                            {c.author[0]}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-medium text-white">{c.author}</span>
-                              <span className="text-[10px] text-white/30">{c.time}</span>
-                            </div>
-                            <p className="text-xs text-white/70 mt-0.5">{c.content}</p>
-                          </div>
-                        </div>
-                      ))}
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={commentInputs[post.id] || ""}
-                          onChange={(e) => setCommentInputs((prev) => ({ ...prev, [post.id]: e.target.value }))}
-                          onKeyDown={(e) => { if (e.key === "Enter") submitComment(post.id) }}
-                          placeholder="Write a comment..."
-                          className="flex-1 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 text-xs"
-                        />
-                        <button
-                          onClick={() => submitComment(post.id)}
-                          className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-xs font-medium hover:opacity-90 transition-opacity"
-                        >
-                          Post
-                        </button>
-                      </div>
+      {/* Main content grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Feed */}
+        <div className="lg:col-span-3 space-y-4">
+          {/* Tag filters */}
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {["", "meditation", "gratitude", "anxiety", "mindfulness", "selfcare", "motivation", "challenge"].map((tag) => (
+              <button
+                key={tag}
+                onClick={() => setTagFilter(tag)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
+                  tagFilter === tag
+                    ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                    : "bg-white/5 text-white/50 border border-white/10 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                {tag ? `#${tag}` : "All Posts"}
+              </button>
+            ))}
+          </div>
+
+          {loading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <GlassCard key={i}>
+                  <div className="animate-pulse flex gap-3">
+                    <div className="w-10 h-10 rounded-full bg-white/10" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 bg-white/10 rounded w-1/4" />
+                      <div className="h-3 bg-white/10 rounded w-3/4" />
+                      <div className="h-3 bg-white/10 rounded w-1/2" />
                     </div>
-                  )}
-                </div>
+                  </div>
+                </GlassCard>
+              ))}
+            </div>
+          ) : (
+            <>
+              {posts.map((post) => (
+                <PostCard
+                  key={post._id}
+                  post={post}
+                  onUpdate={handlePostUpdated}
+                  onDelete={handlePostDeleted}
+                />
+              ))}
+
+              {/* Infinite scroll trigger */}
+              <div ref={loadMoreRef} className="py-4 text-center">
+                {loadingMore && (
+                  <div className="flex items-center justify-center gap-2 text-white/40 text-sm">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Loading more posts...
+                  </div>
+                )}
+                {!hasMore && posts.length > 0 && (
+                  <p className="text-white/30 text-sm">You've reached the end. Come back later for more!</p>
+                )}
               </div>
-            </GlassCard>
-          </motion.div>
-        ))}
-      </div>
 
-      <div className="text-center py-4">
-        {allExhausted ? (
-          <p className="text-sm text-white/30">No more posts to load</p>
-        ) : (
-          <Button variant="glass" onClick={loadMorePosts}>Load More Posts</Button>
-        )}
-      </div>
+              {posts.length === 0 && (
+                <GlassCard>
+                  <div className="text-center py-12">
+                    <TrendingUp className="w-12 h-12 text-white/20 mx-auto mb-3" />
+                    <p className="text-white/50 text-sm">No posts yet. Be the first to share something!</p>
+                  </div>
+                </GlassCard>
+              )}
+            </>
+          )}
+        </div>
 
-      <AnimatePresence>
-        {showNewPost && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
-            onClick={() => setShowNewPost(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="relative w-full max-w-lg rounded-2xl border border-white/10 shadow-2xl bg-[#0a0f1e] p-6"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-white">New Post</h3>
-                <button onClick={() => setShowNewPost(false)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/20 transition-all">
-                  <X className="w-4 h-4" />
+        {/* Sidebar */}
+        <div className="space-y-4">
+          <Leaderboard compact />
+
+          <GlassCard>
+            <h3 className="text-sm font-semibold text-white mb-3">Trending Topics</h3>
+            <div className="space-y-2">
+              {[
+                { tag: "meditation", posts: 234 },
+                { tag: "gratitude", posts: 189 },
+                { tag: "anxiety", posts: 156 },
+                { tag: "mindfulness", posts: 142 },
+                { tag: "selfcare", posts: 98 },
+              ].map((t) => (
+                <button
+                  key={t.tag}
+                  onClick={() => setTagFilter(t.tag)}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-white/5 transition-all"
+                >
+                  <span className="text-sm text-white/70">#{t.tag}</span>
+                  <span className="text-xs text-white/30">{t.posts}</span>
                 </button>
-              </div>
-              <textarea
-                value={newPostContent}
-                onChange={(e) => setNewPostContent(e.target.value)}
-                placeholder="What's on your mind?"
-                rows={4}
-                className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 text-sm resize-none"
-              />
-              <input
-                type="text"
-                value={newPostTags}
-                onChange={(e) => setNewPostTags(e.target.value)}
-                placeholder="Tags (comma separated): meditation, gratitude"
-                className="w-full mt-3 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 text-sm"
-              />
-              <div className="flex justify-end gap-2 mt-4">
-                <Button variant="glass" onClick={() => setShowNewPost(false)}>Cancel</Button>
-                <Button variant="primary" onClick={createNewPost}>Post</Button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              ))}
+            </div>
+          </GlassCard>
+        </div>
+      </div>
+
+      {/* Modals */}
+      <SearchModal open={showSearch} onClose={() => setShowSearch(false)} />
+      <NotificationPanel open={showNotifications} onClose={() => setShowNotifications(false)} />
+      <MessageModal open={showMessages} onClose={() => setShowMessages(false)} />
+      <ModerationPanel open={showModeration} onClose={() => setShowModeration(false)} />
     </div>
   )
 }

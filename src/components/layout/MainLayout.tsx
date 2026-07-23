@@ -7,7 +7,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { useEffect } from "react"
 import { useAuth } from "@/lib/hooks/useAuth"
 
-const protectedRoutes = ["/journal", "/habits", "/profile", "/reports", "/challenges", "/community", "/student", "/learn", "/ai-companion", "/relax"]
+const protectedRoutes = ["/journal", "/habits", "/profile", "/reports", "/challenges", "/community", "/student", "/learn", "/ai-companion", "/relax", "/messages"]
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()

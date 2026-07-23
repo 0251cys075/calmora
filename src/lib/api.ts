@@ -100,10 +100,27 @@ export interface UserData {
   email: string
   calmScore: number
   xp: number
+  reputation: number
   level: number
   avatar?: string
+  coverImage?: string
   streak?: number
-  badges?: string[]
+  longestStreak?: number
+  badges?: { name: string; icon: string; description: string; earnedAt: string }[]
+  username?: string
+  displayName?: string
+  bio?: string
+  location?: string
+  website?: string
+  interests?: string[]
+  wellnessGoals?: string[]
+  followerCount?: number
+  followingCount?: number
+  postCount?: number
+  isAdmin?: boolean
+  isVerified?: boolean
+  isModerator?: boolean
+  createdAt?: string
 }
 
 export interface HabitData {

@@ -38,6 +38,15 @@ function setStoredUser(user: UserData) {
   localStorage.setItem("calmora_user", JSON.stringify(user))
 }
 
+function setStoredToken(token: string) {
+  localStorage.setItem("calmora_token", token)
+}
+
+function getStoredToken(): string | null {
+  if (typeof window === "undefined") return null
+  return localStorage.getItem("calmora_token")
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
     user: null,
@@ -100,6 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const response = await authApi.login({ email, password })
       setStoredUser(response.user)
+      if (response.token) setStoredToken(response.token)
       setState({ user: response.user, loading: false, error: null })
       return true
     } catch (error: any) {
@@ -114,6 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const response = await authApi.register({ name, email, password })
       setStoredUser(response.user)
+      if (response.token) setStoredToken(response.token)
       setState({ user: response.user, loading: false, error: null })
       return true
     } catch (error: any) {
@@ -145,9 +156,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email: firebaseUser.email || "user@calmora.app",
           calmScore: 850,
           xp: 1200,
+          reputation: 50,
           level: 8,
           streak: 5,
-          badges: ["Early Adopter", "Mindful Beginner"],
+          badges: [
+            { name: "Early Adopter", icon: "🌟", description: "One of the first users", earnedAt: new Date().toISOString() },
+            { name: "Mindful Beginner", icon: "🧘", description: "Started mindfulness journey", earnedAt: new Date().toISOString() },
+          ],
           avatar: firebaseUser.photoURL || undefined,
         }
         setStoredUser(user)
@@ -186,9 +201,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email: "guest@calmora.app",
       calmScore: 850,
       xp: 1200,
+      reputation: 0,
       level: 8,
       streak: 5,
-      badges: ["Guest"],
+      badges: [{ name: "Guest", icon: "👋", description: "Exploring Calmora", earnedAt: new Date().toISOString() }],
     }
     setStoredUser(user)
     setState({ user, loading: false, error: null })
@@ -208,6 +224,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } finally {
       localStorage.removeItem("calmora_user")
+      localStorage.removeItem("calmora_token")
       setState({ user: null, loading: false, error: null })
     }
   }, [])

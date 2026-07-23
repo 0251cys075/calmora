@@ -20,6 +20,7 @@ import {
   X,
   Sparkles,
   LogOut,
+  MessageSquare,
 } from "lucide-react"
 import { useState } from "react"
 import { useAuth } from "@/lib/hooks/useAuth"
@@ -33,6 +34,7 @@ const navItems = [
   { href: "/learn", label: "Learn Hub", icon: Sparkles, color: "text-indigo-400" },
   { href: "/reports", label: "Reports", icon: FileText, color: "text-rose-400" },
   { href: "/community", label: "Community", icon: Users, color: "text-pink-400" },
+  { href: "/messages", label: "Messages", icon: MessageSquare, color: "text-cyan-400" },
   { href: "/relax", label: "Relax Zone", icon: Music, color: "text-teal-400" },
   { href: "/student", label: "Student", icon: GraduationCap, color: "text-sky-400" },
   { href: "/emergency", label: "Emergency", icon: AlertTriangle, color: "text-red-400" },
@@ -101,7 +103,7 @@ export function Sidebar() {
 
           <nav className="flex-1 overflow-y-auto p-3 space-y-1 scrollbar-thin">
             {navItems.map((item) => {
-              const isActive = pathname === item.href
+              const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href))
               const Icon = item.icon
               return (
                 <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)}>
@@ -125,17 +127,19 @@ export function Sidebar() {
 
           <div className="p-4 border-t border-white/10 space-y-3">
             {isAuthenticated && user && (
-              <div className="rounded-xl bg-white/5 border border-white/10 p-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
-                    {user.name?.charAt(0).toUpperCase() || "U"}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-white truncate">{user.name}</p>
-                    <p className="text-xs text-white/40 truncate">Level {user.level}</p>
+              <Link href={`/profile/${(user as any)?.username || "me"}`} onClick={() => setMobileOpen(false)}>
+                <div className="rounded-xl bg-white/5 border border-white/10 p-3 hover:bg-white/10 transition-all">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+                      {user.name?.charAt(0).toUpperCase() || "U"}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-white truncate">{user.name}</p>
+                      <p className="text-xs text-white/40 truncate">Level {user.level} · @{(user as any)?.username || "user"}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </Link>
             )}
 
             <div className="rounded-xl bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20 p-3">
