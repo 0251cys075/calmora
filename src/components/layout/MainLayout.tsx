@@ -1,3 +1,10 @@
+/**
+ * @file MainLayout.tsx
+ * @description React layout component wrapping the core application window.
+ * Enforces route guards for protected pathnames, displays global loading screens,
+ * manages responsive sidebar toggles, and injects the emergency crisis FAB button.
+ */
+
 "use client"
 
 import { Sidebar } from "./Sidebar"
@@ -7,6 +14,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { useEffect } from "react"
 import { useAuth } from "@/lib/hooks/useAuth"
 
+// List of routes requiring active user authentication sessions
 const protectedRoutes = ["/journal", "/habits", "/profile", "/reports", "/challenges", "/community", "/student", "/learn", "/ai-companion", "/relax", "/messages"]
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
@@ -14,6 +22,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const { user, loading, isAuthenticated } = useAuth()
 
+  // Redirect users to auth portal if attempting to access protected routes without active session
   useEffect(() => {
     if (loading) return
     const isProtected = protectedRoutes.some((route) => pathname.startsWith(route))
@@ -22,6 +31,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     }
   }, [pathname, loading, isAuthenticated, router])
 
+  // Global loading skeleton screen
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center">
@@ -56,6 +66,10 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   )
 }
 
+/**
+ * Floating Action Button (FAB) pointing to emergency resources page.
+ * Persistently visible in lower right viewport corner.
+ */
 function EmergencyFAB() {
   return (
     <a

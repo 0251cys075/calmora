@@ -1,3 +1,10 @@
+/**
+ * @file follows.js
+ * @description Express routes handling user following networks.
+ * Handles toggling follow state on other users (updating follower counts, XP incentives, social notifications),
+ * checking if the current user follows a target, and retrieving lists of followers/following.
+ */
+
 const express = require("express")
 const router = express.Router()
 const Follow = require("../models/Follow")
@@ -6,6 +13,11 @@ const Notification = require("../models/Notification")
 const Block = require("../models/Block")
 const { auth } = require("../middleware/auth")
 
+/**
+ * @route POST /api/follows/:userId
+ * @desc Toggles following relationship status (follow/unfollow) with another user.
+ * Increments/decrements follower counts and awards XP for engagement.
+ */
 router.post("/:userId", auth, async (req, res) => {
   try {
     const targetId = req.params.userId
@@ -16,21 +28,25 @@ router.post("/:userId", auth, async (req, res) => {
     const target = await User.findById(targetId)
     if (!target) return res.status(404).json({ error: "User not found" })
 
+    // Validate that the target has not blocked the current user
     const blocked = await Block.findOne({ blocker: targetId, blocked: req.user._id })
     if (blocked) return res.status(403).json({ error: "You cannot follow this user" })
 
     const existing = await Follow.findOne({ follower: req.user._id, following: targetId })
     if (existing) {
+      // Unfollow action
       await Follow.findByIdAndDelete(existing._id)
       await User.findByIdAndUpdate(req.user._id, { $inc: { followingCount: -1 } })
       await User.findByIdAndUpdate(targetId, { $inc: { followerCount: -1 } })
       return res.json({ following: false, followerCount: Math.max(0, target.followerCount - 1) })
     }
 
+    // Follow action
     await Follow.create({ follower: req.user._id, following: targetId })
     await User.findByIdAndUpdate(req.user._id, { $inc: { followingCount: 1 } })
     await User.findByIdAndUpdate(targetId, { $inc: { followerCount: 1, xp: 2, reputation: 1 } })
 
+    // Create system notification for target user
     await Notification.create({
       recipient: targetId,
       actor: req.user._id,
@@ -45,6 +61,10 @@ router.post("/:userId", auth, async (req, res) => {
   }
 })
 
+/**
+ * @route GET /api/follows/:userId/status
+ * @desc Checks if the logged-in user follows a specific target user.
+ */
 router.get("/:userId/status", auth, async (req, res) => {
   try {
     const following = await Follow.findOne({ follower: req.user._id, following: req.params.userId })
@@ -54,6 +74,10 @@ router.get("/:userId/status", auth, async (req, res) => {
   }
 })
 
+/**
+ * @route GET /api/follows/:userId/followers
+ * @desc Retrieves a paginated list of users following the target user.
+ */
 router.get("/:userId/followers", async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1
@@ -74,6 +98,10 @@ router.get("/:userId/followers", async (req, res) => {
   }
 })
 
+/**
+ * @route GET /api/follows/:userId/following
+ * @desc Retrieves a paginated list of users followed by the target user.
+ */
 router.get("/:userId/following", async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1

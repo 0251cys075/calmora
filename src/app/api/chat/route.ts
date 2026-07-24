@@ -1,3 +1,10 @@
+/**
+ * @file route.ts
+ * @description Next.js Route Handler for the Calmora AI companion chat endpoint.
+ * Accepts user messages, checks configured API keys for Gemini or OpenAI, maps user history,
+ * and falls back to a rule-based empathetic response system if no LLM APIs are connected.
+ */
+
 const SYSTEM_PROMPT = `You are Calmora, an empathetic, supportive AI mental wellness companion. Your role is to:
 
 1. LISTEN actively and validate the user's feelings without judgment
@@ -19,6 +26,10 @@ Mode-specific instructions:
 - productivity: Offer productivity strategies with wellness in mind. Avoid toxic hustle culture.
 - student: Address academic stress, study techniques, and school-life balance.`
 
+/**
+ * @route POST /api/chat
+ * @desc Handles incoming chat requests. Delegates queries to Gemini, OpenAI, or local fallback.
+ */
 export async function POST(request: Request) {
   try {
     const { message, mode, history } = await request.json()
@@ -29,15 +40,18 @@ export async function POST(request: Request) {
 
     const apiKey = process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY
 
+    // Fall back to rule-based empathetic engine if no keys are found
     if (!apiKey) {
       const fallback = getFallbackResponse(message, mode || "listener")
       return Response.json({ reply: fallback })
     }
 
+    // Prioritize Gemini API if available
     if (process.env.GEMINI_API_KEY) {
       return handleGemini(message, mode || "listener", history || [])
     }
 
+    // Default to OpenAI if Gemini is not set
     return handleOpenAI(message, mode || "listener", history || [])
   } catch (err) {
     console.error("Chat API error:", err)
@@ -45,6 +59,9 @@ export async function POST(request: Request) {
   }
 }
 
+/**
+ * Interfaces with the Google Gemini GenAI SDK to generate replies.
+ */
 async function handleGemini(message: string, mode: string, history: { role: string; content: string }[]) {
   const { GoogleGenAI } = await import("@google/genai")
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
@@ -63,6 +80,9 @@ async function handleGemini(message: string, mode: string, history: { role: stri
   return Response.json({ reply: text })
 }
 
+/**
+ * Interfaces with the OpenAI API using the official SDK.
+ */
 async function handleOpenAI(message: string, mode: string, history: { role: string; content: string }[]) {
   const openai = await import("openai").then((m) => new m.default({ apiKey: process.env.OPENAI_API_KEY }))
 
@@ -81,8 +101,14 @@ async function handleOpenAI(message: string, mode: string, history: { role: stri
   return Response.json({ reply })
 }
 
+/**
+ * Generates local rule-based responses based on user keyword cues and companion modes.
+ * Ensures the app remains functional for users running without external API key credits.
+ */
 function getFallbackResponse(message: string, mode: string): string {
   const input = message.toLowerCase()
+  
+  // Keyword-based sentiment matching
   if (input.includes("sad") || input.includes("depress") || input.includes("lonely")) {
     return "I hear you, and I want you to know that your feelings are completely valid. It takes courage to express what you're going through. Take a gentle breath with me. You don't have to have everything figured out right now. What's one small thing that usually brings you even a tiny bit of comfort? Let's start there."
   }
@@ -99,6 +125,7 @@ function getFallbackResponse(message: string, mode: string): string {
     return "That's beautiful. Gratitude is such a powerful practice. When we acknowledge the good, even in small ways, we train our brain to notice more positivity. What other moments of lightness have you experienced recently? I'd love to celebrate them with you."
   }
 
+  // Fallback mode responses
   const responses: Record<string, string> = {
     listener: "I'm here to listen, without judgment. Tell me more about what's on your mind. Sometimes just saying things out loud can help us understand ourselves better. What feels most important to talk about right now?",
     coach: "Let's work together on this. First, let's identify where you are vs where you want to be. What's one small, achievable step you could take today? Progress doesn't have to be big—it just has to be consistent.",

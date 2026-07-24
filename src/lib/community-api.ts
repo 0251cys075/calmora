@@ -1,7 +1,21 @@
 "use client"
 
+/**
+ * @file community-api.ts
+ * @description API wrapper services and model interfaces for the Calmora community social space.
+ * Provides endpoints for posts, comments, messaging, notifications, blocks, report submissions, 
+ * follower graphs, and leaderboards. Includes local storage-based fallback implementations for offline use.
+ */
+
 import { api } from "./api"
 
+/* ==========================================================================
+   COMMUNITY MODEL INTERFACES
+   ========================================================================== */
+
+/**
+ * Model representing a user's public profile in the social feed.
+ */
 export interface UserProfile {
   _id: string
   username: string
@@ -36,6 +50,9 @@ export interface UserProfile {
   createdAt: string
 }
 
+/**
+ * Represents a badge awarded to a user for reaching wellness milestones.
+ */
 export interface Badge {
   name: string
   icon: string
@@ -43,6 +60,9 @@ export interface Badge {
   earnedAt: string
 }
 
+/**
+ * Represents a specific wellness or engagement achievement in Calmora.
+ */
 export interface Achievement {
   name: string
   description: string
@@ -53,6 +73,9 @@ export interface Achievement {
   earnedAt: string
 }
 
+/**
+ * Media attachments for posts, comments, or private messages.
+ */
 export interface PostMedia {
   type: "image" | "video" | "gif" | "voice"
   url: string
@@ -60,8 +83,12 @@ export interface PostMedia {
   duration?: number
 }
 
+/**
+ * Model representing a community post, supporting media, likes, reposts, and bookmark saves.
+ */
 export interface PostData {
   _id: string
+  // Author can be fully populated or have minimal fields
   author: UserProfile | { _id: string; username: string; displayName: string; name: string; avatar: string; level: number; xp: number; isVerified: boolean }
   content: string
   media: PostMedia[]
@@ -84,6 +111,9 @@ export interface PostData {
   updatedAt: string
 }
 
+/**
+ * Model representing a comment on a community post, allowing nested replies.
+ */
 export interface CommentData {
   _id: string
   post: string
@@ -99,6 +129,9 @@ export interface CommentData {
   replies?: CommentData[]
 }
 
+/**
+ * Represents a social alert notification for the current logged-in user.
+ */
 export interface NotificationData {
   _id: string
   recipient: string
@@ -112,12 +145,18 @@ export interface NotificationData {
   createdAt: string
 }
 
+/**
+ * Represents an active direct message thread with another user.
+ */
 export interface ConversationData {
   user: UserProfile
   lastMessage: MessageData
   unreadCount: number
 }
 
+/**
+ * Represents a single private message exchanged between two users.
+ */
 export interface MessageData {
   _id: string
   sender: { _id: string; username: string; displayName: string; name: string; avatar: string }
@@ -129,6 +168,9 @@ export interface MessageData {
   createdAt: string
 }
 
+/**
+ * Represents a content report submitted by a user for moderation review.
+ */
 export interface ReportData {
   _id: string
   reporter: string | UserProfile
@@ -140,6 +182,9 @@ export interface ReportData {
   createdAt: string
 }
 
+/**
+ * Pagination metadata returned alongside lists of feeds/comments.
+ */
 export interface Pagination {
   page: number
   limit: number
@@ -148,6 +193,14 @@ export interface Pagination {
   hasMore: boolean
 }
 
+/* ==========================================================================
+   LOCAL REPOSITORY STORAGE & AUTHENTICATION AUXILIARIES
+   ========================================================================== */
+
+/**
+ * Safe local helper to get the current JWT authorization token.
+ * @returns JWT string or null
+ */
 function getToken(): string | null {
   if (typeof window === "undefined") return null
   try {
@@ -157,11 +210,19 @@ function getToken(): string | null {
   }
 }
 
+/**
+ * Builds HTTP headers containing the active JSON Web Token.
+ * @returns Object with Authorization bearer header
+ */
 const headers = (): Record<string, string> => {
   const token = getToken()
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
+/**
+ * Retrieves fallback community posts stored locally when server is unavailable.
+ * @returns Array of local posts
+ */
 function getStoredPosts(): PostData[] {
   if (typeof window === "undefined") return []
   try {
@@ -172,6 +233,10 @@ function getStoredPosts(): PostData[] {
   }
 }
 
+/**
+ * Saves fallback community posts to local storage.
+ * @param posts - List of posts to cache
+ */
 function saveStoredPosts(posts: PostData[]) {
   if (typeof window === "undefined") return
   try {
@@ -179,8 +244,18 @@ function saveStoredPosts(posts: PostData[]) {
   } catch {}
 }
 
+/* ==========================================================================
+   COMMUNITY ENDPOINT API WORKERS
+   ========================================================================== */
+
 export const communityApi = {
-  // Posts
+  
+  /* --- POSTS DOMAIN --- */
+  
+  /**
+   * Fetches paginated social posts feed, optionally filtered by tag.
+   * Falls back to offline localStorage if request fails.
+   */
   getFeed: async (page = 1, tag?: string) => {
     try {
       return await api<{ posts: PostData[]; pagination: Pagination }>(
@@ -188,6 +263,7 @@ export const communityApi = {
         { headers: headers() }
       )
     } catch {
+      // Offline / Local-only paging calculation
       const stored = getStoredPosts()
       const filtered = tag
         ? stored.filter((p) => p.tags?.includes(tag) || p.hashtags?.includes(tag.toLowerCase()))
@@ -208,9 +284,15 @@ export const communityApi = {
     }
   },
 
+  /**
+   * Fetches details of a single post by ID.
+   */
   getPost: (id: string) =>
     api<{ post: PostData }>(`/posts/${id}`, { headers: headers() }),
 
+  /**
+   * Creates a new social post. Auto-caches locally on success or fallback when offline.
+   */
   createPost: async (data: { content: string; media?: PostMedia[]; tags?: string[] }) => {
     try {
       const res = await api<{ post: PostData; moderated: boolean }>("/posts", {
@@ -224,7 +306,7 @@ export const communityApi = {
       }
       return res
     } catch {
-      // Local storage fallback when API returns 404 or fails
+      // Local storage offline creation fallback when API returns 404 or fails
       const userRaw = typeof window !== "undefined" ? localStorage.getItem("calmora_user") : null
       const userObj = userRaw ? JSON.parse(userRaw) : { name: "Guest Explorer", username: "guest" }
 
@@ -268,6 +350,9 @@ export const communityApi = {
     }
   },
 
+  /**
+   * Updates an existing post.
+   */
   updatePost: (id: string, data: { content?: string; media?: PostMedia[]; tags?: string[] }) =>
     api<{ post: PostData }>(`/posts/${id}`, {
       method: "PATCH",
@@ -275,6 +360,9 @@ export const communityApi = {
       headers: headers(),
     }),
 
+  /**
+   * Deletes a post, syncing the deletion locally for instant UI update.
+   */
   deletePost: async (id: string) => {
     try {
       const res = await api<{ message: string }>(`/posts/${id}`, { method: "DELETE", headers: headers() })
@@ -288,6 +376,9 @@ export const communityApi = {
     }
   },
 
+  /**
+   * Likes or unlikes a post. Toggles user state locally if network fails.
+   */
   likePost: async (id: string) => {
     try {
       return await api<{ liked: boolean; likeCount: number }>(`/posts/${id}/like`, { method: "POST", headers: headers() })
@@ -307,6 +398,9 @@ export const communityApi = {
     }
   },
 
+  /**
+   * Reposts another user's post with optional commentary.
+   */
   repostPost: (id: string, thought?: string) =>
     api<{ reposted: boolean; repostCount: number }>(`/posts/${id}/repost`, {
       method: "POST",
@@ -314,12 +408,21 @@ export const communityApi = {
       headers: headers(),
     }),
 
+  /**
+   * Toggles the bookmark/save status of a post.
+   */
   savePost: (id: string) =>
     api<{ saved: boolean; saveCount: number }>(`/posts/${id}/save`, { method: "POST", headers: headers() }),
 
+  /**
+   * Moderates and pins a post to the top of the user's profile feed.
+   */
   pinPost: (id: string) =>
     api<{ pinned: boolean }>(`/posts/${id}/pin`, { method: "POST", headers: headers() }),
 
+  /**
+   * Flags a post to community moderators.
+   */
   reportPost: (id: string, reason: string, description?: string) =>
     api<{ message: string }>(`/posts/${id}/report`, {
       method: "POST",
@@ -327,10 +430,17 @@ export const communityApi = {
       headers: headers(),
     }),
 
-  // Comments
+  /* --- COMMENTS DOMAIN --- */
+
+  /**
+   * Fetches comments belonging to a specific post.
+   */
   getComments: (postId: string, page = 1) =>
     api<{ comments: CommentData[]; pagination: Pagination }>(`/comments/post/${postId}?page=${page}`, { headers: headers() }),
 
+  /**
+   * Creates a comment or replies to an existing nested comment.
+   */
   createComment: (postId: string, content: string, parentCommentId?: string) =>
     api<{ comment: CommentData }>(`/comments/post/${postId}`, {
       method: "POST",
@@ -338,6 +448,9 @@ export const communityApi = {
       headers: headers(),
     }),
 
+  /**
+   * Modifies a comment's body.
+   */
   updateComment: (id: string, content: string) =>
     api<{ comment: CommentData }>(`/comments/${id}`, {
       method: "PATCH",
@@ -345,42 +458,81 @@ export const communityApi = {
       headers: headers(),
     }),
 
+  /**
+   * Deletes a comment.
+   */
   deleteComment: (id: string) =>
     api<{ message: string }>(`/comments/${id}`, { method: "DELETE", headers: headers() }),
 
+  /**
+   * Toggles a comment like.
+   */
   likeComment: (id: string) =>
     api<{ liked: boolean; likeCount: number }>(`/comments/${id}/like`, { method: "POST", headers: headers() }),
 
-  // Follows
+  /* --- FOLLOWS DOMAIN --- */
+
+  /**
+   * Toggles follow status on another user.
+   */
   toggleFollow: (userId: string) =>
     api<{ following: boolean; followerCount: number }>(`/follows/${userId}`, { method: "POST", headers: headers() }),
 
+  /**
+   * Determines if the current user is following another user.
+   */
   checkFollow: (userId: string) =>
     api<{ following: boolean }>(`/follows/${userId}/status`, { headers: headers() }),
 
+  /**
+   * Retrieves followers list of a specific user.
+   */
   getFollowers: (userId: string, page = 1) =>
     api<{ users: UserProfile[]; pagination: Pagination }>(`/follows/${userId}/followers?page=${page}`, { headers: headers() }),
 
+  /**
+   * Retrieves followings list of a specific user.
+   */
   getFollowing: (userId: string, page = 1) =>
     api<{ users: UserProfile[]; pagination: Pagination }>(`/follows/${userId}/following?page=${page}`, { headers: headers() }),
 
-  // Notifications
+  /* --- NOTIFICATIONS DOMAIN --- */
+
+  /**
+   * Fetches active social notifications.
+   */
   getNotifications: (page = 1) =>
     api<{ notifications: NotificationData[]; unreadCount: number; pagination: Pagination }>(`/notifications?page=${page}`, { headers: headers() }),
 
+  /**
+   * Marks all notifications of the current user as read.
+   */
   markAllRead: () =>
     api<{ message: string }>("/notifications/read-all", { method: "POST", headers: headers() }),
 
+  /**
+   * Marks a single notification as read.
+   */
   markRead: (id: string) =>
     api<{ message: string }>(`/notifications/${id}/read`, { method: "POST", headers: headers() }),
 
-  // Messages
+  /* --- MESSAGES DOMAIN --- */
+
+  /**
+   * Retrieves list of active chat conversations.
+   */
   getConversations: () =>
     api<{ conversations: ConversationData[] }>("/messages/conversations", { headers: headers() }),
 
+  /**
+   * Fetches message history with a specific user.
+   */
   getMessages: (userId: string, page = 1) =>
     api<{ messages: MessageData[] }>(`/messages/${userId}?page=${page}`, { headers: headers() }),
 
+  /**
+   * Sends a private direct message.
+   */
   sendMessage: (userId: string, content: string) =>
     api<{ message: MessageData }>(`/messages/${userId}`, {
       method: "POST",
@@ -388,20 +540,31 @@ export const communityApi = {
       headers: headers(),
     }),
 
-  // Search
+  /* --- SEARCH DOMAIN --- */
+
+  /**
+   * Performs full-text queries for users and posts.
+   */
   search: (q: string, type?: string, page = 1) =>
     api<{ users?: UserProfile[]; posts?: PostData[]; userCount?: number; postCount?: number }>(
       `/search?q=${encodeURIComponent(q)}&page=${page}${type ? `&type=${type}` : ""}`,
       { headers: headers() }
     ),
 
+  /**
+   * Fetches autocomplete suggestions and popular hashtags.
+   */
   getSuggestions: (q: string) =>
     api<{ users: UserProfile[]; hashtags: { tag: string; count: number }[] }>(
       `/search/suggestions?q=${encodeURIComponent(q)}`,
       { headers: headers() }
     ),
 
-  // Reports & Blocks
+  /* --- REPORTS & BLOCKS DOMAIN --- */
+
+  /**
+   * Submits a report flagging a post, comment, or user.
+   */
   submitReport: (targetType: string, target: string, reason: string, description?: string) =>
     api<{ report: ReportData }>("/reports", {
       method: "POST",
@@ -409,20 +572,37 @@ export const communityApi = {
       headers: headers(),
     }),
 
+  /**
+   * Toggles blocking behavior for another user profile.
+   */
   toggleBlock: (userId: string) =>
     api<{ blocked: boolean; message: string }>(`/reports/block/${userId}`, { method: "POST", headers: headers() }),
 
+  /**
+   * Lists all users blocked by the authenticated user.
+   */
   getBlockedUsers: () =>
     api<{ blockedUsers: UserProfile[] }>("/reports/blocked", { headers: headers() }),
 
-  // Users / Profile
+  /* --- USERS / PROFILE DOMAIN --- */
+
+  /**
+   * Fetches detailed profile of a user by username or ID identifier.
+   */
   getUserProfile: (identifier: string) =>
     api<{ user: UserProfile }>(`/search/user/${encodeURIComponent(identifier)}`, { headers: headers() }),
 
+  /**
+   * Retrieves all feed posts created by a specific user.
+   */
   getUserPosts: (userId: string, page = 1) =>
     api<{ posts: PostData[]; pagination: Pagination }>(`/posts/feed?author=${userId}&page=${page}`, { headers: headers() }),
 
-  // Leaderboard
+  /* --- LEADERBOARD --- */
+
+  /**
+   * Retrieves the global ranking leaderboard (sorted by xp or reputation).
+   */
   getLeaderboard: (type = "xp", page = 1) =>
     api<{ users: UserProfile[]; pagination: Pagination }>(`/search/leaderboard?type=${type}&page=${page}`, { headers: headers() }),
 }

@@ -1,3 +1,10 @@
+/**
+ * @file page.tsx
+ * @description React page component displaying the collection of 21-Day Transformation challenges.
+ * Renders user global achievements metrics, highlights active in-progress programs,
+ * and displays available challenge cards with duration and XP metrics.
+ */
+
 "use client"
 
 import { GlassCard } from "@/components/ui/glass-card"
@@ -9,6 +16,7 @@ import { motion } from "framer-motion"
 import Link from "next/link"
 import { ArrowRight, Trophy, Clock, Star, Sparkles, Users, Target, Zap } from "lucide-react"
 
+// Framer motion list container animation variations
 const container = {
   hidden: { opacity: 0 },
   show: {
@@ -17,11 +25,15 @@ const container = {
   },
 }
 
+// Framer motion list item animation variants
 const item = {
   hidden: { opacity: 0, y: 20 },
   show: { opacity: 1, y: 0 },
 }
 
+/**
+ * Computes progress percentage for a given challenge ID based on completed days logged in localStorage.
+ */
 function getChallengeProgress(challengeId: string): number {
   if (typeof window === "undefined") return 0
   try {
@@ -46,6 +58,7 @@ export default function ChallengesPage() {
         <p className="text-white/50 mt-1">Guided programs to transform your life, one day at a time</p>
       </motion.div>
 
+      {/* Hero Achievement Summary Panel */}
       <motion.div variants={item}>
         <GlassCard className="relative overflow-hidden" glow>
           <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent" />
@@ -71,6 +84,7 @@ export default function ChallengesPage() {
         </GlassCard>
       </motion.div>
 
+      {/* Active in-progress programs list */}
       <motion.div variants={item}>
         <h2 className="text-lg font-semibold text-white mb-3">Active Challenges</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -104,6 +118,7 @@ export default function ChallengesPage() {
         </div>
       </motion.div>
 
+      {/* Grid of all remaining programs */}
       <motion.div variants={item}>
         <h2 className="text-lg font-semibold text-white mb-3">All Challenges</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

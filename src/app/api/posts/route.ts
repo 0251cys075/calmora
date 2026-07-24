@@ -1,11 +1,21 @@
+/**
+ * @file route.ts
+ * @description Next.js API route handler for mock community posts.
+ * Allows reading recent posts and publishing a new post with dummy author details if logged in as a guest.
+ */
+
 import { NextRequest, NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import jwt from "jsonwebtoken"
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
 
+// In-memory mock store for community feed posts
 let postsStore: any[] = []
 
+/**
+ * Extracts and decodes current user credentials from JWT cookie.
+ */
 async function getAuthUser(): Promise<any | null> {
   try {
     const cookieStore = await cookies()
@@ -18,10 +28,18 @@ async function getAuthUser(): Promise<any | null> {
   }
 }
 
+/**
+ * @route GET /api/posts
+ * @desc Retrieves all cached mock posts from memory.
+ */
 export async function GET() {
   return NextResponse.json({ posts: postsStore })
 }
 
+/**
+ * @route POST /api/posts
+ * @desc Publishes a new mock community post, appending it to the local cache array.
+ */
 export async function POST(req: NextRequest) {
   try {
     const authUser = await getAuthUser()

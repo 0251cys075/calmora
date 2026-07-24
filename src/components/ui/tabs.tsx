@@ -1,3 +1,10 @@
+/**
+ * @file tabs.tsx
+ * @description Reusable Tab group selector component.
+ * Features animated slide highlight transitions (via Framer Motion layoutId)
+ * to indicate the active tab selection, supporting icons and text labels.
+ */
+
 "use client"
 
 import { cn } from "@/lib/utils"
@@ -35,6 +42,7 @@ export function Tabs({ tabs, defaultTab, onChange, className }: TabsProps) {
             activeTab === tab.id ? "text-white" : "text-white/50 hover:text-white/80"
           )}
         >
+          {/* Framer motion active backdrop slide animator */}
           {activeTab === tab.id && (
             <motion.div
               layoutId="activeTab"

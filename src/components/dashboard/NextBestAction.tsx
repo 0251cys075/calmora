@@ -1,3 +1,10 @@
+/**
+ * @file NextBestAction.tsx
+ * @description React component rendering a personalized "Next Best Action" card.
+ * Evaluates state parameters (journal logs latency, mood checkins, remaining habits, streak records)
+ * to suggest contextually relevant wellness activities (like AI chat, journal entries, or habit logs).
+ */
+
 "use client"
 
 import { useMemo } from "react"
@@ -24,6 +31,10 @@ interface Suggestion {
   color: string
 }
 
+/**
+ * Custom rule engine selecting the optimal action.
+ * Priority: Journal checkup -> Mood logging -> Habit completions -> Streaks challenges -> AI chat
+ */
 function getSuggestion(
   journalEntries: { date: string }[],
   moodEntries: { date: string }[],
@@ -34,6 +45,7 @@ function getSuggestion(
   now.setHours(0, 0, 0, 0)
   const nowTime = now.getTime()
 
+  // 1. Check if journal entry has been neglected
   const lastJournal = journalEntries.length > 0
     ? new Date(journalEntries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].date).getTime()
     : 0
@@ -49,6 +61,7 @@ function getSuggestion(
     }
   }
 
+  // 2. Check if mood has not been logged today
   const moodToday = moodEntries.some((e) => {
     const ed = new Date(e.date)
     ed.setHours(0, 0, 0, 0)
@@ -65,6 +78,7 @@ function getSuggestion(
     }
   }
 
+  // 3. Check for incomplete habits today
   const habitsToday = habits.filter((h) =>
     (h.logs || []).some((l) => {
       const ld = new Date(l.date)
@@ -84,6 +98,7 @@ function getSuggestion(
     }
   }
 
+  // 4. Offer challenges on major streak milestones
   if (streak > 0 && streak % 7 === 0) {
     return {
       href: "/challenges",
@@ -94,6 +109,7 @@ function getSuggestion(
     }
   }
 
+  // 5. Default action: chat with AI companion
   return {
     href: "/ai-companion",
     label: "Chat with your AI Companion",
@@ -104,6 +120,7 @@ function getSuggestion(
 }
 
 export function NextBestAction({ journalEntries, moodEntries, habits, streak }: NextBestActionProps) {
+  // Memoize suggestion payload based on user statistics parameters
   const suggestion = useMemo(
     () => getSuggestion(journalEntries, moodEntries, habits, streak),
     [journalEntries, moodEntries, habits, streak],
@@ -138,6 +155,7 @@ export function NextBestAction({ journalEntries, moodEntries, habits, streak }: 
   )
 }
 
+// Framer motion animation variants
 const item = {
   hidden: { opacity: 0, y: 20 },
   show: { opacity: 1, y: 0 },

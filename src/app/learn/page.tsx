@@ -1,3 +1,11 @@
+/**
+ * @file page.tsx
+ * @description React page component for the educational Learn Hub.
+ * Compiles multimedia health content items (videos, articles, podcasts) by category,
+ * supports title/description text searching, bookmarks list filters, and mounts custom overlay media players
+ * (iframes for YouTube video clips, custom HTML5 Audio context controls for podcast episodes, and scrollable articles).
+ */
+
 "use client"
 
 import { GlassCard } from "@/components/ui/glass-card"
@@ -12,6 +20,7 @@ import {
   Pause, Volume2, VolumeX, Rewind, FastForward, FileText
 } from "lucide-react"
 
+// Video embed target mappings
 const videoEmbeds: Record<string, string> = {
   "anx-1": "https://www.youtube.com/embed/QjLOWQqy2MU?cc_load_policy=1&hl=en",
   "str-1": "https://www.youtube.com/embed/o18I23HCQtE?cc_load_policy=1&hl=en",
@@ -23,6 +32,7 @@ const videoEmbeds: Record<string, string> = {
   "min-1": "https://www.youtube.com/embed/6p_yaNFSYao?cc_load_policy=1&hl=en",
 }
 
+// Podcast MP3 media target mappings
 const podcastUrls: Record<string, string> = {
   "anx-3": "https://assets.mixkit.co/music/324/324.mp3",
   "str-3": "https://assets.mixkit.co/music/292/292.mp3",
@@ -34,6 +44,7 @@ const podcastUrls: Record<string, string> = {
   "min-3": "https://assets.mixkit.co/music/444/444.mp3",
 }
 
+// Local mock article markdown/text records
 const articleContents: Record<string, { title: string; body: string }> = {
   "anx-2": {
     title: "5 Grounding Techniques for Panic Attacks",
@@ -79,11 +90,15 @@ export default function LearnPage() {
   const [activeCategory, setActiveCategory] = useState("anxiety")
   const [searchQuery, setSearchQuery] = useState("")
   const [bookmarked, setBookmarked] = useState<string[]>([])
+  
+  // Media modal toggling structures
   const [activeVideoUrl, setActiveVideoUrl] = useState<string | null>(null)
   const [activeVideoTitle, setActiveVideoTitle] = useState("")
   const [activeArticle, setActiveArticle] = useState<{ title: string; body: string } | null>(null)
   const [activePodcastUrl, setActivePodcastUrl] = useState<string | null>(null)
   const [activePodcastTitle, setActivePodcastTitle] = useState("")
+  
+  // Audio state parameters
   const [audioPlaying, setAudioPlaying] = useState(false)
   const [audioProgress, setAudioProgress] = useState(0)
   const [audioDuration, setAudioDuration] = useState(0)
@@ -93,6 +108,8 @@ export default function LearnPage() {
   const lastUrlRef = useRef<string | null>(null)
 
   const content = getContentByCategory(activeCategory)
+  
+  // Search query filter matches
   const filteredContent = searchQuery.trim()
     ? content.filter((item) =>
         item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -100,6 +117,7 @@ export default function LearnPage() {
       )
     : content
 
+  // Safely release audio handles on unmount
   useEffect(() => {
     return () => {
       if (audioRef.current) {
@@ -109,6 +127,10 @@ export default function LearnPage() {
     }
   }, [])
 
+  /**
+   * Initializes HTML5 Audio contexts, binds timeupdate trackers,
+   * handles metadata buffers, and resets playback loops.
+   */
   const initAudio = (url: string) => {
     if (audioRef.current) {
       audioRef.current.pause()
@@ -131,11 +153,15 @@ export default function LearnPage() {
     lastUrlRef.current = url
   }
 
+  /**
+   * Dispatches execution routes depending on media types (video frames, text overlays, audio contexts).
+   */
   const handlePlay = (item: ContentItem) => {
     setAudioPlaying(false)
     setAudioProgress(0)
     setAudioCurrentTime(0)
     setAudioDuration(0)
+    
     if (item.type === "video") {
       if (audioRef.current) { audioRef.current.pause(); audioRef.current = null }
       const embedUrl = videoEmbeds[item.id]
@@ -167,6 +193,9 @@ export default function LearnPage() {
     }
   }
 
+  /**
+   * Toggles pause/play status on active podcast audio objects.
+   */
   const toggleAudio = () => {
     if (!activePodcastUrl) return
     if (audioPlaying) {
@@ -181,6 +210,9 @@ export default function LearnPage() {
     }
   }
 
+  /**
+   * Safely pauses and releases audio streams.
+   */
   const closeAudio = () => {
     if (audioRef.current) {
       audioRef.current.pause()
@@ -193,18 +225,27 @@ export default function LearnPage() {
     setAudioDuration(0)
   }
 
+  /**
+   * Seeks audio track forward by 10 seconds.
+   */
   const skipForward = () => {
     if (audioRef.current) {
       audioRef.current.currentTime = Math.min(audioRef.current.currentTime + 10, audioDuration)
     }
   }
 
+  /**
+   * Seeks audio track backward by 10 seconds.
+   */
   const skipBackward = () => {
     if (audioRef.current) {
       audioRef.current.currentTime = Math.max(audioRef.current.currentTime - 10, 0)
     }
   }
 
+  /**
+   * Sets audio track time index relative to click location in timeline track.
+   */
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
     if (audioRef.current && audioDuration > 0) {
       const rect = e.currentTarget.getBoundingClientRect()
@@ -213,12 +254,18 @@ export default function LearnPage() {
     }
   }
 
+  /**
+   * Binds audio volume slide updates directly to HTML5 Audio element.
+   */
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const vol = parseFloat(e.target.value)
     setAudioVolume(vol)
     if (audioRef.current) audioRef.current.volume = vol
   }
 
+  /**
+   * Formats raw seconds values into minutes:seconds notation.
+   */
   const formatAudioTime = (seconds: number) => {
     const m = Math.floor(seconds / 60)
     const s = Math.floor(seconds % 60)

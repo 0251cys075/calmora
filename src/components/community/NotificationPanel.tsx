@@ -1,3 +1,10 @@
+/**
+ * @file NotificationPanel.tsx
+ * @description React component rendering a slide-out notification drawer.
+ * Displays various notifications (likes, replies, follow events, achievements, etc.) with relative timestamps.
+ * Triggers status updates to mark alerts as read upon click actions.
+ */
+
 "use client"
 
 import { motion, AnimatePresence } from "framer-motion"
@@ -14,6 +21,7 @@ interface NotificationPanelProps {
   onClose: () => void
 }
 
+// Icon mapping based on notification categories
 const notifIcons: Record<string, React.ElementType> = {
   like: Heart,
   comment: MessageCircle,
@@ -27,6 +35,7 @@ const notifIcons: Record<string, React.ElementType> = {
   message: MessageSquare,
 }
 
+// Icon color styling based on notification categories
 const notifColors: Record<string, string> = {
   like: "text-rose-400",
   comment: "text-blue-400",
@@ -42,14 +51,20 @@ const notifColors: Record<string, string> = {
 
 export function NotificationPanel({ open, onClose }: NotificationPanelProps) {
   const router = useRouter()
+  
+  // UI states
   const [notifications, setNotifications] = useState<NotificationData[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
 
+  // Load feed list when drawer is toggled open
   useEffect(() => {
     if (open) loadNotifications()
   }, [open])
 
+  /**
+   * Queries notification feed data from api helper.
+   */
   const loadNotifications = async () => {
     setLoading(true)
     try {
@@ -60,6 +75,9 @@ export function NotificationPanel({ open, onClose }: NotificationPanelProps) {
     setLoading(false)
   }
 
+  /**
+   * Marks all loaded unread items as read.
+   */
   const handleMarkAllRead = useCallback(async () => {
     try {
       await communityApi.markAllRead()
@@ -68,6 +86,9 @@ export function NotificationPanel({ open, onClose }: NotificationPanelProps) {
     } catch {}
   }, [])
 
+  /**
+   * Marks chosen alert as read and navigates user contextually.
+   */
   const handleClick = async (notif: NotificationData) => {
     if (!notif.read) {
       try {
@@ -76,6 +97,8 @@ export function NotificationPanel({ open, onClose }: NotificationPanelProps) {
         setUnreadCount((prev) => Math.max(0, prev - 1))
       } catch {}
     }
+    
+    // Redirect contextually based on notification actions
     if (notif.type === "message" || notif.type === "follow") {
       router.push(`/profile/${notif.actor?.username || notif.actor?._id}`)
     } else {
@@ -84,6 +107,9 @@ export function NotificationPanel({ open, onClose }: NotificationPanelProps) {
     onClose()
   }
 
+  /**
+   * Formats ISO timestamp relative to the current local epoch time.
+   */
   const timeAgo = (date: string) => {
     const diff = Date.now() - new Date(date).getTime()
     const mins = Math.floor(diff / 60000)
@@ -96,6 +122,9 @@ export function NotificationPanel({ open, onClose }: NotificationPanelProps) {
     return new Date(date).toLocaleDateString()
   }
 
+  /**
+   * Resolves notification content description templates.
+   */
   const getLabel = (n: NotificationData) => {
     const name = n.actor?.name || n.actor?.username || "Someone"
     switch (n.type) {

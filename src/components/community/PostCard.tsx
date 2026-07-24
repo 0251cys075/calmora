@@ -1,3 +1,10 @@
+/**
+ * @file PostCard.tsx
+ * @description React component rendering a single community feed post.
+ * Includes interactive social functions (likes, saves, pins, edits, deletes, reports, share dialogs)
+ * and rich media support (image grids, video players, and audio clips).
+ */
+
 "use client"
 
 import { GlassCard } from "@/components/ui/glass-card"
@@ -26,6 +33,8 @@ interface PostCardProps {
 export function PostCard({ post, onUpdate, onDelete }: PostCardProps) {
   const { user } = useAuth()
   const router = useRouter()
+  
+  // UI toggles and local counter states
   const [showComments, setShowComments] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -43,11 +52,15 @@ export function PostCard({ post, onUpdate, onDelete }: PostCardProps) {
 
   const isAuthor = user?.id === post.author?._id
 
+  // Reset media loader parameters when post ID updates
   useEffect(() => {
     setVideoError(false)
     setVideoLoaded(false)
   }, [post._id])
 
+  /**
+   * Toggles the post like state.
+   */
   const handleLike = useCallback(async () => {
     if (loading === "like") return
     setLoading("like")
@@ -61,6 +74,9 @@ export function PostCard({ post, onUpdate, onDelete }: PostCardProps) {
     }
   }, [post._id, loading])
 
+  /**
+   * Toggles the bookmark save state.
+   */
   const handleSave = useCallback(async () => {
     if (loading === "save") return
     try {
@@ -70,6 +86,9 @@ export function PostCard({ post, onUpdate, onDelete }: PostCardProps) {
     }
   }, [post._id, loading])
 
+  /**
+   * Toggles the pinned profile state.
+   */
   const handlePin = useCallback(async () => {
     if (loading === "pin") return
     try {
@@ -79,6 +98,9 @@ export function PostCard({ post, onUpdate, onDelete }: PostCardProps) {
     }
   }, [post._id, loading])
 
+  /**
+   * Triggers community API post removal.
+   */
   const handleDelete = useCallback(async () => {
     if (!confirm("Delete this post?")) return
     if (loading === "delete") return
@@ -91,6 +113,9 @@ export function PostCard({ post, onUpdate, onDelete }: PostCardProps) {
     }
   }, [post._id, onDelete, loading])
 
+  /**
+   * Updates body text of the current post.
+   */
   const handleEdit = useCallback(async () => {
     if (!editContent.trim()) return
     setLoading("edit")
@@ -103,6 +128,9 @@ export function PostCard({ post, onUpdate, onDelete }: PostCardProps) {
     }
   }, [post._id, editContent, onUpdate])
 
+  /**
+   * Flags post for review with a moderation reason.
+   */
   const handleReport = useCallback(async () => {
     if (!reportReason) return
     try {
@@ -113,11 +141,17 @@ export function PostCard({ post, onUpdate, onDelete }: PostCardProps) {
     } catch {}
   }, [post._id, reportReason])
 
+  /**
+   * Copies post URL directly to the user's clipboard.
+   */
   const handleCopyLink = useCallback(() => {
     navigator.clipboard.writeText(`${window.location.origin}/community?post=${post._id}`)
     setShowMenu(false)
   }, [post._id])
 
+  /**
+   * Opens native system sharing dialogues (or falls back to copy link).
+   */
   const handleShare = useCallback(async () => {
     if (navigator.share) {
       try {
@@ -132,6 +166,9 @@ export function PostCard({ post, onUpdate, onDelete }: PostCardProps) {
     handleCopyLink()
   }, [post._id, post.content, handleCopyLink])
 
+  /**
+   * Formats static ISO timestamps into human-readable relative durations.
+   */
   const timeAgo = (date: string) => {
     const diff = Date.now() - new Date(date).getTime()
     const mins = Math.floor(diff / 60000)

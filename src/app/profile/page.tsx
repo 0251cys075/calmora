@@ -1,3 +1,11 @@
+/**
+ * @file page.tsx
+ * @description React page component for the user Profile.
+ * Renders level achievements, XP completion meters, earned badges grids,
+ * and a canvas generation utility that creates progress summary PNG cards for social sharing.
+ * Provides controls for logging out and toggling basic mockup settings.
+ */
+
 "use client"
 
 import { GlassCard } from "@/components/ui/glass-card"
@@ -15,6 +23,7 @@ import { useState, useRef, useCallback, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 
+// Badges list specifications
 const badges = [
   { name: "7-Day Streak", icon: Flame, color: "from-orange-500 to-red-500", earned: true },
   { name: "Mindful Master", icon: Brain, color: "from-purple-500 to-indigo-500", earned: true },
@@ -24,6 +33,7 @@ const badges = [
   { name: "Meditation Guru", icon: Shield, color: "from-emerald-500 to-teal-500", earned: false },
 ]
 
+// Achievement progression items
 const achievements = [
   { name: "First Journal Entry", progress: 100, icon: Heart },
   { name: "Complete 7-Day Streak", progress: 100, icon: Flame },
@@ -55,11 +65,18 @@ export default function ProfilePage() {
     ? new Date(parseInt(user.id.replace(/\D/g, "").slice(0, 12), 10) || Date.now()).toLocaleDateString("en-US", { month: "long", year: "numeric" })
     : "July 2026"
 
+  /**
+   * Logs out user session and forwards router to login screen.
+   */
   const handleSignOut = useCallback(async () => {
     await logout()
     router.replace("/auth")
   }, [logout, router])
 
+  /**
+   * Dynamically renders profile statistics (XP, level, score, and badges) onto an invisible
+   * HTML Canvas element, exports the image data to the clipboard, or triggers a PNG file download.
+   */
   const handleShare = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas || !user) return
@@ -69,6 +86,7 @@ export default function ProfilePage() {
     canvas.width = 600
     canvas.height = 400
 
+    // Render gradient background
     const gradient = ctx.createLinearGradient(0, 0, 600, 400)
     gradient.addColorStop(0, "#1e3a5f")
     gradient.addColorStop(0.5, "#0a0f1e")
@@ -76,6 +94,7 @@ export default function ProfilePage() {
     ctx.fillStyle = gradient
     ctx.fillRect(0, 0, 600, 400)
 
+    // Render outer border ring
     ctx.strokeStyle = "rgba(255,255,255,0.1)"
     ctx.lineWidth = 1
     ctx.strokeRect(10, 10, 580, 380)
@@ -115,6 +134,7 @@ export default function ProfilePage() {
       ctx.fillText(b.name, 40 + i * 140, 325)
     })
 
+    // Output to system clipboard or download fallback
     canvas.toBlob((blob) => {
       if (!blob) return
       const item = new ClipboardItem({ "image/png": blob })
@@ -258,6 +278,7 @@ export default function ProfilePage() {
         </GlassCard>
       </motion.div>
 
+      {/* Settings Modal Dialogue Box */}
       <AnimatePresence>
         {showSettings && (
           <motion.div

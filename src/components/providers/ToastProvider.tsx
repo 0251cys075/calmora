@@ -1,35 +1,63 @@
 "use client"
 
+/**
+ * @file ToastProvider.tsx
+ * @description Provides a notification banner system optimized for gamification alerts
+ * (e.g., XP gain, Level-ups, Achievements). Uses Framer Motion for slide/fade animations
+ * and injects dynamic CSS keyframe animations to render confetti celebrations during level-ups.
+ */
+
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 
+// Toast categories reflecting different progression achievements
 type ToastType = "xp" | "levelUp" | "achievement"
 
+/**
+ * Toast alert data model.
+ */
 interface Toast {
   id: number
   message: string
   type: ToastType
-  amount?: number
+  amount?: number // Optional value for XP gains (+10 XP)
 }
 
+/**
+ * Interface for the context value exposing the display method.
+ */
 interface ToastContextValue {
   showToast: (message: string, type: ToastType, amount?: number) => void
 }
 
+// Global context to share the toast display hook
 const ToastContext = createContext<ToastContextValue>({ showToast: () => {} })
 
+/**
+ * Custom hook to trigger gamification toast notifications from any component.
+ */
 export function useToast() {
   return useContext(ToastContext)
 }
 
+// Thread-safe auto-incrementing ID for toast keys
 let toastId = 0
 
+/**
+ * Toast Provider component that handles overlay rendering of multiple stacked active toasts
+ * and triggers CSS confetti explosions upon level-up.
+ */
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
 
+  /**
+   * Registers a new toast and sets a 3-second self-removal timeout.
+   */
   const showToast = useCallback((message: string, type: ToastType, amount?: number) => {
     const id = ++toastId
     setToasts((prev) => [...prev, { id, message, type, amount }])
+    
+    // Auto-diminish toast after 3 seconds
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id))
     }, 3000)
@@ -38,6 +66,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
+      
+      {/* Toast Overlay Container */}
       <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
         <AnimatePresence>
           {toasts.map((toast) => (
@@ -55,6 +85,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                   : "bg-gradient-to-r from-amber-600/90 to-orange-600/90 border-amber-500/30"
               }`}
             >
+              {/* Type-based Icon Indicators */}
               <span className="text-lg">
                 {toast.type === "levelUp" ? "🎉" : toast.type === "xp" ? "⭐" : "🏆"}
               </span>
@@ -68,6 +99,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           ))}
         </AnimatePresence>
       </div>
+
+      {/* Confetti Explosion System triggered specifically on Level-ups */}
       {toasts.some((t) => t.type === "levelUp") && (
         <div className="fixed inset-0 pointer-events-none z-[99]">
           {Array.from({ length: 30 }).map((_, i) => (
@@ -85,6 +118,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           ))}
         </div>
       )}
+      
+      {/* Stylesheet for Confetti Fall Transitions */}
       <style>{`
         @keyframes confetti-fall {
           0% { transform: translateY(0) rotate(0deg); opacity: 1; }

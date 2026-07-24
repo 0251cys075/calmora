@@ -1,3 +1,10 @@
+/**
+ * @file page.tsx
+ * @description React page component for the Habits & Mood tracker workspace.
+ * Allows users to toggles checks on daily routines, create custom habits with custom icons,
+ * log emotional check-ins, view weekly streaks, review mood histograms, and review monthly calendars.
+ */
+
 "use client"
 
 import { GlassCard } from "@/components/ui/glass-card"
@@ -16,6 +23,7 @@ import { habitsApi, moodsApi, withFallback, isOnline, type HabitData } from "@/l
 import { useLocalStorage } from "@/lib/hooks/useLocalStorage"
 import { useToast } from "@/components/providers/ToastProvider"
 
+// Mood level scale icons and styling config
 const moodsConfig = [
   { value: 5, icon: <Smile className="w-6 h-6" />, label: "Great", color: "text-emerald-400", bg: "bg-emerald-500/20 border-emerald-500/30" },
   { value: 4, icon: <Sun className="w-6 h-6" />, label: "Good", color: "text-blue-400", bg: "bg-blue-500/20 border-blue-500/30" },
@@ -24,6 +32,7 @@ const moodsConfig = [
   { value: 1, icon: <Angry className="w-6 h-6" />, label: "Poor", color: "text-rose-400", bg: "bg-rose-500/20 border-rose-500/30" },
 ]
 
+// Icon presets for habit generation
 const habitIcons = [
   { name: "Brain", icon: Brain, color: "text-purple-400" },
   { name: "Coffee", icon: Coffee, color: "text-blue-400" },
@@ -33,6 +42,7 @@ const habitIcons = [
   { name: "Zap", icon: Zap, color: "text-cyan-400" },
 ]
 
+// Default preloaded routines
 const defaultHabits = [
   { id: "default_1", name: "Morning Meditation", icon: Brain, color: "text-purple-400", completed: false, streak: 0, time: "7:00 AM", logs: [] },
   { id: "default_2", name: "Drink 8 Glasses Water", icon: Coffee, color: "text-blue-400", completed: false, streak: 0, time: "All day", logs: [] },
@@ -71,6 +81,7 @@ export default function HabitsPage() {
   const [newHabitIcon, setNewHabitIcon] = useState(0)
   const [newHabitTime, setNewHabitTime] = useState("8:00 AM")
 
+  // Sync state between client storage fallback and database APIs
   useEffect(() => {
     if (habitsList.length === 0) {
       setHabitsList(defaultHabits as unknown as HabitData[])
@@ -100,6 +111,10 @@ export default function HabitsPage() {
     return d
   }
 
+  /**
+   * Translates HabitData arrays from APIs/storage into LocalHabit structures
+   * mapping icon styles and status calculations for the active calendar day.
+   */
   const computeDisplayHabits = useCallback((): LocalHabit[] => {
     if (habitsList.length === 0) return defaultHabits as LocalHabit[]
     return habitsList.map((h) => {
@@ -121,6 +136,10 @@ export default function HabitsPage() {
 
   const displayHabits = computeDisplayHabits()
 
+  /**
+   * Toggles completion status of a habit, logs the record locally,
+   * awards user levels/XP points, and syncs status updates asynchronously to the database.
+   */
   const toggleHabit = useCallback((id: string) => {
     let wasCompleted = false
     setHabitsList((prev) => {
@@ -151,6 +170,7 @@ export default function HabitsPage() {
       return updated
     })
 
+    // Level calculation and toast alerts
     if (wasCompleted) {
       const userData = JSON.parse(localStorage.getItem("calmora_user") || "{}")
       const oldLevel = userData.level || 8
@@ -171,6 +191,9 @@ export default function HabitsPage() {
     habitsApi.toggle(id).catch(() => {})
   }, [showToast])
 
+  /**
+   * Appends custom habit settings to state and clears input.
+   */
   const addHabit = useCallback(() => {
     const name = newHabitName.trim()
     if (!name) return
@@ -188,6 +211,9 @@ export default function HabitsPage() {
     setShowAddHabit(false)
   }, [newHabitName, newHabitIcon, setHabitsList])
 
+  /**
+   * Logs a new mood score entry to local storage lists and syncs to backend API.
+   */
   const handleMoodSubmit = () => {
     if (!selectedMood) return
     setSavingMood(true)
@@ -378,6 +404,7 @@ export default function HabitsPage() {
         </motion.div>
       </div>
 
+      {/* Grid calendar for monthly visual overview of logged moods */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -417,6 +444,7 @@ export default function HabitsPage() {
         </GlassCard>
       </motion.div>
 
+      {/* Pop up modal for entering custom habits */}
       <AnimatePresence>
         {showAddHabit && (
           <motion.div

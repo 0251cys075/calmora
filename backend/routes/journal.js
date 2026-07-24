@@ -1,9 +1,18 @@
+/**
+ * @file journal.js
+ * @description Express routes handling private journal entry CRUD workflows 
+ * and analytical summaries (metrics for average mood, gratitude entries count, top topic tags).
+ */
+
 const express = require("express")
 const jwt = require("jsonwebtoken")
 const Journal = require("../models/Journal")
 
 const router = express.Router()
 
+/**
+ * Local auth middleware to extract userId from JWT token header.
+ */
 function auth(req, res, next) {
   const authHeader = req.headers.authorization
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -19,6 +28,10 @@ function auth(req, res, next) {
   }
 }
 
+/**
+ * @route GET /api/journal
+ * @desc Retrieves the user's recent private journal entries (limit 20), sorted by date.
+ */
 router.get("/", auth, async (req, res) => {
   try {
     const entries = await Journal.find({ user: req.userId }).sort({ date: -1 }).limit(20)
@@ -29,6 +42,10 @@ router.get("/", auth, async (req, res) => {
   }
 })
 
+/**
+ * @route POST /api/journal
+ * @desc Saves a new private journal entry.
+ */
 router.post("/", auth, async (req, res) => {
   try {
     const { title, content, mood, tags, isGratitude } = req.body
@@ -45,6 +62,10 @@ router.post("/", auth, async (req, res) => {
   }
 })
 
+/**
+ * @route GET /api/journal/summary
+ * @desc Compiles analytics on user's weekly journal logs (total logs, average mood score, top tag topic, gratitude logs count).
+ */
 router.get("/summary", auth, async (req, res) => {
   try {
     const now = new Date()
@@ -58,8 +79,16 @@ router.get("/summary", auth, async (req, res) => {
     }).sort({ date: -1 })
 
     const totalEntries = entries.length
-    const avgMood = entries.filter((e) => e.mood).reduce((sum, e) => sum + e.mood, 0) / (entries.filter((e) => e.mood).length || 1)
+    
+    // Average mood rating from entries containing a score
+    const entriesWithMood = entries.filter((e) => e.mood)
+    const avgMood = entriesWithMood.length
+      ? entriesWithMood.reduce((sum, e) => sum + e.mood, 0) / entriesWithMood.length
+      : 1
+      
     const gratitudeCount = entries.filter((e) => e.isGratitude).length
+    
+    // Extract and sort tags to find the most frequent keyword
     const allTags = entries.flatMap((e) => e.tags || [])
     const topTopic = allTags.length
       ? allTags.sort((a, b) => allTags.filter((t) => t === a).length - allTags.filter((t) => t === b).length).pop()
@@ -74,6 +103,10 @@ router.get("/summary", auth, async (req, res) => {
   }
 })
 
+/**
+ * @route GET /api/journal/:id
+ * @desc Fetches a single journal entry by ID.
+ */
 router.get("/:id", auth, async (req, res) => {
   try {
     const entry = await Journal.findOne({ _id: req.params.id, user: req.userId })
@@ -85,6 +118,10 @@ router.get("/:id", auth, async (req, res) => {
   }
 })
 
+/**
+ * @route DELETE /api/journal/:id
+ * @desc Deletes a journal entry.
+ */
 router.delete("/:id", auth, async (req, res) => {
   try {
     const entry = await Journal.findOneAndDelete({ _id: req.params.id, user: req.userId })

@@ -1,3 +1,10 @@
+/**
+ * @file page.tsx
+ * @description React page component displaying the public profile card of a Calmora community user.
+ * Searches and displays profile summaries, location tags, website links, streaks, and public feeds.
+ * Includes interactive triggers for direct messaging, reports, block lists, and follow states.
+ */
+
 "use client"
 
 import { GlassCard } from "@/components/ui/glass-card"
@@ -40,6 +47,10 @@ export default function PublicProfilePage() {
     loadProfile()
   }, [username])
 
+  /**
+   * Queries users by their @username to load profile attributes,
+   * follow status, and recent post feed cards.
+   */
   const loadProfile = async () => {
     setLoading(true)
     try {
@@ -65,6 +76,9 @@ export default function PublicProfilePage() {
     setLoading(false)
   }
 
+  /**
+   * Dispatches toggleFollow API request and syncs follower count updates.
+   */
   const handleFollow = useCallback(async () => {
     if (!profile) return
     try {
@@ -74,6 +88,9 @@ export default function PublicProfilePage() {
     } catch {}
   }, [profile])
 
+  /**
+   * Dispatches toggleBlock API request and syncs block status updates.
+   */
   const handleBlock = useCallback(async () => {
     if (!profile) return
     try {
@@ -82,6 +99,9 @@ export default function PublicProfilePage() {
     } catch {}
   }, [profile])
 
+  /**
+   * Submits an abuse report ticket against the profile being viewed.
+   */
   const handleReport = useCallback(async () => {
     if (!profile) return
     try {
@@ -90,6 +110,9 @@ export default function PublicProfilePage() {
     } catch {}
   }, [profile])
 
+  /**
+   * Fetches user follower account summaries and opens the overlay list modal.
+   */
   const loadFollowers = async () => {
     if (!profile) return
     try {
@@ -99,6 +122,9 @@ export default function PublicProfilePage() {
     } catch {}
   }
 
+  /**
+   * Fetches user following account summaries and opens the overlay list modal.
+   */
   const loadFollowing = async () => {
     if (!profile) return
     try {
@@ -135,7 +161,7 @@ export default function PublicProfilePage() {
 
   return (
     <div className="space-y-6">
-      {/* Cover Image */}
+      {/* Cover Banner Layout */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -146,7 +172,7 @@ export default function PublicProfilePage() {
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-[#0a0f1e] via-transparent to-transparent" />
 
-        {/* Profile info overlay */}
+        {/* Profile info details overlay */}
         <div className="absolute bottom-0 left-0 right-0 p-6 flex items-end gap-4">
           <Avatar src={profile.avatar} name={displayName} size="xl" className="ring-4 ring-[#0a0f1e]" />
           <div className="flex-1 min-w-0">
@@ -164,12 +190,12 @@ export default function PublicProfilePage() {
       </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left sidebar - Profile info */}
+        {/* Left sidebar - Profile metadata card */}
         <div className="space-y-4">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
             <GlassCard>
               <div className="space-y-3">
-                {/* Action buttons */}
+                {/* Action trigger buttons */}
                 {!isOwnProfile && currentUser && (
                   <div className="flex gap-2">
                     <Button
@@ -187,12 +213,12 @@ export default function PublicProfilePage() {
                   </div>
                 )}
 
-                {/* Bio */}
+                {/* Biography string */}
                 {profile.bio && (
                   <p className="text-sm text-white/70">{profile.bio}</p>
                 )}
 
-                {/* Details */}
+                {/* Details layout */}
                 <div className="space-y-1.5">
                   {profile.location && (
                     <div className="flex items-center gap-2 text-xs text-white/40">
@@ -210,7 +236,7 @@ export default function PublicProfilePage() {
                   </div>
                 </div>
 
-                {/* Stats */}
+                {/* Followers and posts count statistics */}
                 <div className="grid grid-cols-3 gap-2 pt-2">
                   <div className="text-center p-2 rounded-xl bg-white/5">
                     <p className="text-lg font-bold text-gradient-amber">{profile.followerCount || 0}</p>
@@ -229,7 +255,7 @@ export default function PublicProfilePage() {
             </GlassCard>
           </motion.div>
 
-          {/* XP & Level */}
+          {/* XP & Level progression meters */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
             <GlassCard>
               <h3 className="text-sm font-semibold text-white mb-3">Progress</h3>
@@ -261,7 +287,7 @@ export default function PublicProfilePage() {
             </GlassCard>
           </motion.div>
 
-          {/* Interests */}
+          {/* Interest tags */}
           {profile.interests && profile.interests.length > 0 && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
               <GlassCard>
@@ -276,9 +302,9 @@ export default function PublicProfilePage() {
           )}
         </div>
 
-        {/* Right - Posts */}
+        {/* Right - Public feeds and Badges row */}
         <div className="lg:col-span-2 space-y-4">
-          {/* Badges row */}
+          {/* Badges list */}
           {profile.badges && profile.badges.length > 0 && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
               <GlassCard>
@@ -297,7 +323,7 @@ export default function PublicProfilePage() {
             </motion.div>
           )}
 
-          {/* Posts */}
+          {/* Feed Posts */}
           <h3 className="text-lg font-semibold text-white">Posts</h3>
           {posts.length === 0 ? (
             <GlassCard>
@@ -311,7 +337,7 @@ export default function PublicProfilePage() {
         </div>
       </div>
 
-      {/* Followers modal */}
+      {/* Followers list modal dialog */}
       {showFollowers && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowFollowers(false)}>
           <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#0a0f1e] p-4 max-h-96 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -327,7 +353,7 @@ export default function PublicProfilePage() {
         </div>
       )}
 
-      {/* Following modal */}
+      {/* Following list modal dialog */}
       {showFollowing && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowFollowing(false)}>
           <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#0a0f1e] p-4 max-h-96 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -343,7 +369,7 @@ export default function PublicProfilePage() {
         </div>
       )}
 
-      {/* Message modal */}
+      {/* Message composition modal */}
       <MessageModal open={showMessage} onClose={() => setShowMessage(false)} initialUserId={profile._id} />
     </div>
   )

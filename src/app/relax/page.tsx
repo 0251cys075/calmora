@@ -1,3 +1,12 @@
+/**
+ * @file page.tsx
+ * @description React page component for the Relax Zone.
+ * Exposes three relaxation tabs:
+ * 1. Box Breathing helper with animated pulses (4s inhale, 4s hold, 6s exhale).
+ * 2. Soundscapes mixer supporting HTML5 audio looping and error-catching on play.
+ * 3. Focus Pomodoro countdown timer with SVG ring displays and Web Audio API synthesized end chimes.
+ */
+
 "use client"
 
 import { GlassCard } from "@/components/ui/glass-card"
@@ -12,6 +21,7 @@ import {
   Trees, Moon, VolumeX
 } from "lucide-react"
 
+// Soundscape audio URL mappings
 const soundUrls: Record<string, string> = {
   rain: "https://assets.mixkit.co/active_storage/sfx/2394/2394.wav",
   ocean: "https://assets.mixkit.co/active_storage/sfx/1196/1196.wav",
@@ -46,6 +56,7 @@ export default function RelaxPage() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const endTimeRef = useRef<number>(0)
 
+  // Side-effect: Manages the breathing guide cycle phases
   useEffect(() => {
     if (breathPhase !== "idle") {
       const phaseDurations: Record<string, number> = { in: 4000, hold: 4000, out: 6000 }
@@ -64,6 +75,7 @@ export default function RelaxPage() {
     }
   }, [breathPhase !== "idle"])
 
+  // Side-effect: Pomodoro count tick timer loop
   useEffect(() => {
     if (pomodoroActive && timer > 0) {
       endTimeRef.current = Date.now() + timer * 1000
@@ -85,6 +97,7 @@ export default function RelaxPage() {
     }
   }, [pomodoroActive])
 
+  // Side-effect: Toggles focus and breaks modes when Pomodoro timer runs out
   useEffect(() => {
     if (timer === 0 && !pomodoroActive) {
       playEndSound()
@@ -109,6 +122,7 @@ export default function RelaxPage() {
     }
   }, [timer, pomodoroActive])
 
+  // Safely cleanup audio streams on component cleanup
   useEffect(() => {
     return () => {
       if (audioRef.current) {
@@ -118,6 +132,10 @@ export default function RelaxPage() {
     }
   }, [])
 
+  /**
+   * Synthesizes a completion chime (880Hz sine wave tone) using the Web Audio API Context
+   * to alert users at the end of focus/break iterations without requiring external files.
+   */
   function playEndSound() {
     try {
       const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
@@ -135,6 +153,10 @@ export default function RelaxPage() {
     }
   }
 
+  /**
+   * Toggles the active status of a soundscape loop. Dispatches HTML5 Audio play
+   * commands and monitors autoplay block warnings or fetch issues.
+   */
   const handleSoundToggle = async (soundId: string) => {
     setAudioError(null)
 
@@ -182,6 +204,9 @@ export default function RelaxPage() {
     }
   }
 
+  /**
+   * Formatting helper mapping raw duration seconds to MM:SS string markers.
+   */
   const formatTimer = (seconds: number) => {
     const m = Math.floor(seconds / 60)
     const s = seconds % 60
@@ -403,6 +428,9 @@ export default function RelaxPage() {
     </div>
   )
 
+  /**
+   * Helper returning the maximum duration limits mapped to active Pomodoro modes.
+   */
   function getMaxTimer() {
     if (pomodoroMode === "longBreak") return 15 * 60
     if (pomodoroMode === "break") return 5 * 60

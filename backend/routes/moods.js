@@ -1,9 +1,18 @@
+/**
+ * @file moods.js
+ * @description Express routes handling daily mood entry submissions,
+ * historical mood logs retrieval, and weekly mood averages reports for visualization charts.
+ */
+
 const express = require("express")
 const jwt = require("jsonwebtoken")
 const Mood = require("../models/Mood")
 
 const router = express.Router()
 
+/**
+ * Local auth middleware to extract userId from JWT token header.
+ */
 function auth(req, res, next) {
   const authHeader = req.headers.authorization
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -19,6 +28,10 @@ function auth(req, res, next) {
   }
 }
 
+/**
+ * @route GET /api/moods
+ * @desc Retrieves the user's recent mood logs (up to 30 entries), sorted by date.
+ */
 router.get("/", auth, async (req, res) => {
   try {
     const moods = await Mood.find({ user: req.userId }).sort({ date: -1 }).limit(30)
@@ -29,6 +42,10 @@ router.get("/", auth, async (req, res) => {
   }
 })
 
+/**
+ * @route POST /api/moods
+ * @desc Registers a new daily mood log entry (with rating 1-5, note, and tags).
+ */
 router.post("/", auth, async (req, res) => {
   try {
     const { mood, note, tags } = req.body
@@ -43,13 +60,19 @@ router.post("/", auth, async (req, res) => {
   }
 })
 
+/**
+ * @route GET /api/moods/weekly
+ * @desc Calculates averaged mood entries grouped by weekday for the current week.
+ */
 router.get("/weekly", auth, async (req, res) => {
   try {
     const now = new Date()
     const startOfWeek = new Date(now)
+    // Find the preceding Sunday to align the calendar week start
     startOfWeek.setDate(now.getDate() - now.getDay())
     startOfWeek.setHours(0, 0, 0, 0)
 
+    // Retrieve all logs recorded since Sunday
     const entries = await Mood.find({
       user: req.userId,
       date: { $gte: startOfWeek },
@@ -61,10 +84,12 @@ router.get("/weekly", auth, async (req, res) => {
       dayStart.setDate(startOfWeek.getDate() + i)
       const dayEnd = new Date(dayStart)
       dayEnd.setHours(23, 59, 59, 999)
+      
       const dayEntries = entries.filter((e) => {
         const d = new Date(e.date)
         return d >= dayStart && d <= dayEnd
       })
+      
       const avg = dayEntries.length
         ? dayEntries.reduce((sum, e) => sum + e.mood, 0) / dayEntries.length
         : null

@@ -1,3 +1,10 @@
+/**
+ * @file WeeklyInsight.tsx
+ * @description React component rendering computed weekly wellness insights.
+ * Analyzes the user's past 7 days of mood check-ins to output custom suggestions about
+ * their peak positivity days, patterns, or consistency metrics.
+ */
+
 "use client"
 
 import { useMemo } from "react"
@@ -8,10 +15,16 @@ interface WeeklyInsightProps {
   moodEntries: { mood: number; date: string }[]
 }
 
+/**
+ * Resolves local full weekday name (e.g. "Monday").
+ */
 function getDayName(date: Date): string {
   return date.toLocaleDateString("en-US", { weekday: "long" })
 }
 
+/**
+ * Returns a collection of Date boundaries representing the last 7 calendar days.
+ */
 function getLast7Days(): Date[] {
   const days: Date[] = []
   for (let i = 6; i >= 0; i--) {
@@ -23,6 +36,10 @@ function getLast7Days(): Date[] {
   return days
 }
 
+/**
+ * Parses mood history records to build comparative aggregates.
+ * Identifies the user's happiest weekday average or most frequent logging day.
+ */
 function generateInsight(moodEntries: { mood: number; date: string }[]): string {
   const last7 = getLast7Days()
   const dayMoodMap: Record<string, { total: number; count: number }> = {}
@@ -71,10 +88,12 @@ function generateInsight(moodEntries: { mood: number; date: string }[]): string 
     }
   }
 
+  // Consistent checkin notice
   if (daysWithData.length >= 5) {
     return `You were most consistent on ${mostConsistentDay}s with your check-ins this week.`
   }
 
+  // Peak positivity day notice
   if (bestDay) {
     return `Your mood tends to be highest on ${bestDay}s. Notice what makes those days different.`
   }
@@ -83,6 +102,7 @@ function generateInsight(moodEntries: { mood: number; date: string }[]): string 
 }
 
 export function WeeklyInsight({ moodEntries }: WeeklyInsightProps) {
+  // Memoize generated insight statement based on mood log arrays
   const insight = useMemo(() => generateInsight(moodEntries), [moodEntries])
   const hasData = moodEntries.length > 0
 
@@ -105,6 +125,7 @@ export function WeeklyInsight({ moodEntries }: WeeklyInsightProps) {
   )
 }
 
+// Motion animation variations
 const item = {
   hidden: { opacity: 0, y: 20 },
   show: { opacity: 1, y: 0 },

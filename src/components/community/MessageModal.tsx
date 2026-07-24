@@ -1,3 +1,9 @@
+/**
+ * @file MessageModal.tsx
+ * @description React component rendering a direct messaging (DMs) drawer panel.
+ * Displays user conversations list with unread counts and a chat window to send/receive messages.
+ */
+
 "use client"
 
 import { motion, AnimatePresence } from "framer-motion"
@@ -19,6 +25,8 @@ interface MessageModalProps {
 export function MessageModal({ open, onClose, initialUserId }: MessageModalProps) {
   const { user } = useAuth()
   const router = useRouter()
+  
+  // UI states
   const [conversations, setConversations] = useState<ConversationData[]>([])
   const [activeUserId, setActiveUserId] = useState<string | null>(initialUserId || null)
   const [messages, setMessages] = useState<MessageData[]>([])
@@ -27,18 +35,24 @@ export function MessageModal({ open, onClose, initialUserId }: MessageModalProps
   const [sending, setSending] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
+  // Fetch threads whenever modal is opened
   useEffect(() => {
     if (open) loadConversations()
   }, [open])
 
+  // Fetch message history whenever active chat target transitions
   useEffect(() => {
     if (activeUserId) loadMessages(activeUserId)
   }, [activeUserId])
 
+  // Scroll to bottom of chat list on new message loads
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
+  /**
+   * Fetches active conversation lists.
+   */
   const loadConversations = async () => {
     setLoading(true)
     try {
@@ -49,6 +63,9 @@ export function MessageModal({ open, onClose, initialUserId }: MessageModalProps
     setLoading(false)
   }
 
+  /**
+   * Fetches chat history with a specific user.
+   */
   const loadMessages = async (userId: string) => {
     try {
       const res = await communityApi.getMessages(userId)
@@ -56,6 +73,9 @@ export function MessageModal({ open, onClose, initialUserId }: MessageModalProps
     } catch {}
   }
 
+  /**
+   * Transmits a new message.
+   */
   const handleSend = useCallback(async () => {
     if (!newMessage.trim() || !activeUserId) return
     setSending(true)
@@ -68,6 +88,9 @@ export function MessageModal({ open, onClose, initialUserId }: MessageModalProps
     setSending(false)
   }, [newMessage, activeUserId])
 
+  /**
+   * Enables sending with Enter keyboard key (unless Shift+Enter is pressed).
+   */
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()

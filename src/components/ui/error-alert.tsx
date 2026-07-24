@@ -1,3 +1,10 @@
+/**
+ * @file error-alert.tsx
+ * @description Reusable ErrorAlert UI component.
+ * Displays error notice blocks with custom color layouts (warning, danger, info),
+ * including optional callback triggers for retrying actions or dismissing notifications.
+ */
+
 "use client"
 
 import { motion, AnimatePresence } from "framer-motion"
@@ -39,6 +46,7 @@ export function ErrorAlert({ error, onDismiss, onRetry, variant = "warning" }: E
           <p className="text-sm font-medium">{error}</p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Optional Action Retry Trigger Button */}
           {onRetry && (
             <Button
               variant="ghost"
@@ -48,6 +56,7 @@ export function ErrorAlert({ error, onDismiss, onRetry, variant = "warning" }: E
               className="h-8 px-2"
             />
           )}
+          {/* Optional Action Dismiss Trigger Button */}
           {onDismiss && (
             <button
               onClick={onDismiss}

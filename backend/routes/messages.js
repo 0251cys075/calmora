@@ -1,3 +1,10 @@
+/**
+ * @file messages.js
+ * @description Express routes handling user direct messaging (DMs) features.
+ * Provides inbox listing with unread counts using Mongoose aggregations, chat history fetches, 
+ * marking messages as read, and sending new messages with safety checks against blocked lists.
+ */
+
 const express = require("express")
 const router = express.Router()
 const Message = require("../models/Message")
@@ -5,15 +12,23 @@ const Notification = require("../models/Notification")
 const Block = require("../models/Block")
 const { auth } = require("../middleware/auth")
 
+/**
+ * @route GET /api/messages/conversations
+ * @desc Retrieves all active chat threads/conversations for the logged-in user.
+ * Runs a Mongoose aggregation pipeline to locate the latest message per thread and sum unread counts.
+ */
 router.get("/conversations", auth, async (req, res) => {
   try {
     const messages = await Message.aggregate([
+      // Stage 1: Filter messages involving the current user
       {
         $match: {
           $or: [{ sender: req.user._id }, { receiver: req.user._id }],
         },
       },
+      // Stage 2: Sort descending to put newest messages first
       { $sort: { createdAt: -1 } },
+      // Stage 3: Project the context fields onto conversation partner groups
       {
         $group: {
           _id: null,
@@ -29,6 +44,7 @@ router.get("/conversations", auth, async (req, res) => {
         },
       },
       { $unwind: "$conversations" },
+      // Stage 4: Group by user ID, select the first message (newest) and count unread messages
       {
         $group: {
           _id: "$conversations.userId",
@@ -51,6 +67,7 @@ router.get("/conversations", auth, async (req, res) => {
       },
     ])
 
+    // Populate user profile details for each conversation partner
     const userIds = messages.map((m) => m._id)
     const users = await require("../models/User").find({ _id: { $in: userIds } })
       .select("username displayName name avatar isVerified")
@@ -68,6 +85,10 @@ router.get("/conversations", auth, async (req, res) => {
   }
 })
 
+/**
+ * @route GET /api/messages/:userId
+ * @desc Fetches the message history with a specific user. Auto-marks received messages as read.
+ */
 router.get("/:userId", auth, async (req, res) => {
   try {
     const { userId } = req.params
@@ -75,6 +96,7 @@ router.get("/:userId", auth, async (req, res) => {
     const limit = parseInt(req.query.limit) || 50
     const skip = (page - 1) * limit
 
+    // Find messages between the current user and target user
     const messages = await Message.find({
       $or: [
         { sender: req.user._id, receiver: userId },
@@ -87,17 +109,23 @@ router.get("/:userId", auth, async (req, res) => {
       .populate("sender", "username displayName name avatar")
       .populate("receiver", "username displayName name avatar")
 
+    // Mark unread incoming messages from the target user as read
     await Message.updateMany(
       { sender: userId, receiver: req.user._id, read: false },
       { read: true, readAt: new Date() },
     )
 
+    // Reverse history to display in chronological ascending order
     res.json({ messages: messages.reverse() })
   } catch (err) {
     res.status(500).json({ error: "Failed to load messages" })
   }
 })
 
+/**
+ * @route POST /api/messages/:userId
+ * @desc Sends a private direct message to a user. Blocks transmission if blocked relations exist.
+ */
 router.post("/:userId", auth, async (req, res) => {
   try {
     const { userId } = req.params
@@ -106,6 +134,7 @@ router.post("/:userId", auth, async (req, res) => {
       return res.status(400).json({ error: "Message content is required" })
     }
 
+    // Verify neither user has blocked the other
     const blocked = await Block.findOne({
       $or: [
         { blocker: userId, blocked: req.user._id },
@@ -127,6 +156,7 @@ router.post("/:userId", auth, async (req, res) => {
       .populate("sender", "username displayName name avatar")
       .populate("receiver", "username displayName name avatar")
 
+    // Trigger notification to receiver
     await Notification.create({
       recipient: userId,
       actor: req.user._id,

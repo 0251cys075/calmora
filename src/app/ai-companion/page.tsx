@@ -1,3 +1,11 @@
+/**
+ * @file page.tsx
+ * @description React page component for the AI Companion Chatbot.
+ * Provides user dialogue modes (Listener, CBT Coach, Motivation, Student Mentor, etc.),
+ * computes client-side sentiment intensity values based on message keywords,
+ * and renders adaptive recommendations like breathing or journal exercises.
+ */
+
 "use client"
 
 import { GlassCard } from "@/components/ui/glass-card"
@@ -12,6 +20,7 @@ import {
 } from "lucide-react"
 import { isOnline } from "@/lib/api"
 
+// Assorted chatbot configuration presets
 const modes = [
   { id: "listener", label: "Listener", icon: Heart, color: "text-rose-400", gradient: "from-rose-500 to-pink-500" },
   { id: "coach", label: "Coach", icon: Target, color: "text-emerald-400", gradient: "from-emerald-500 to-teal-500" },
@@ -28,6 +37,7 @@ interface Message {
   emotion?: string
 }
 
+// Interactive chat helper suggestions
 const suggestions = [
   "I've been feeling stressed about work lately",
   "Help me practice mindfulness",
@@ -47,10 +57,14 @@ export default function AICompanionPage() {
   const chatEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
+  // Scroll to new chat elements as history updates
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
+  /**
+   * Submits user message text to backend API and logs assistant replies.
+   */
   const handleSend = async () => {
     if (!input.trim()) return
     const userMessage = input.trim()
@@ -59,6 +73,7 @@ export default function AICompanionPage() {
     setIsTyping(true)
     setError(null)
 
+    // Handle offline status checkup
     if (!isOnline()) {
       setTimeout(() => {
         setMessages((prev) => [...prev, {
@@ -82,6 +97,7 @@ export default function AICompanionPage() {
       const data = await res.json()
       setMessages((prev) => [...prev, { role: "assistant", content: data.reply, emotion: "caring" }])
     } catch {
+      // Local rules-based emergency backup responses
       const fallbacks: Record<string, string> = {
         listener: "I'm here to listen. Tell me more about what's on your mind.",
         coach: "Let's work on this together. What's one small step you can take today?",
@@ -99,6 +115,9 @@ export default function AICompanionPage() {
     }
   }
 
+  /**
+   * Binds Enter key press to submit message (unless Shift key is held).
+   */
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
@@ -109,6 +128,9 @@ export default function AICompanionPage() {
   const activeModeData = modes.find((m) => m.id === activeMode)
   const Icon = activeModeData?.icon || Bot
 
+  /**
+   * Parses current dialogue user utterances text to detect and score key emotions.
+   */
   const emotionLevels = useMemo(() => {
     const userText = messages.filter((m) => m.role === "user").map((m) => m.content.toLowerCase()).join(" ")
     const keywords = {
@@ -129,6 +151,8 @@ export default function AICompanionPage() {
         }
       })
     }
+    
+    // Default baseline parameters if no user text fits keywords
     if (total === 0) {
       return [
         { emotion: "Stress", level: 30, color: "from-rose-500 to-pink-500" },
@@ -137,6 +161,7 @@ export default function AICompanionPage() {
         { emotion: "Energy", level: 50, color: "from-blue-500 to-cyan-500" },
       ]
     }
+    
     const maxCount = Math.max(...Object.values(counts), 1)
     const clamp = (v: number) => Math.max(5, Math.min(100, v))
     return [

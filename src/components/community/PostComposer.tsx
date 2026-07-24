@@ -1,3 +1,10 @@
+/**
+ * @file PostComposer.tsx
+ * @description React component rendering a rich content post editor/composer.
+ * Supports image/video media selection with constraints verification (max 100MB),
+ * comma-separated tag input fields, inline text lengths indicator, and local moderation warnings.
+ */
+
 "use client"
 
 import { GlassCard } from "@/components/ui/glass-card"
@@ -19,6 +26,8 @@ interface PostComposerProps {
 
 export function PostComposer({ onPostCreated, compact }: PostComposerProps) {
   const { user } = useAuth()
+  
+  // Input fields, errors, and files lists states
   const [content, setContent] = useState("")
   const [tags, setTags] = useState("")
   const [expanded, setExpanded] = useState(!compact)
@@ -29,8 +38,11 @@ export function PostComposer({ onPostCreated, compact }: PostComposerProps) {
   const [mediaErrors, setMediaErrors] = useState<string[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  /**
+   * Verifies file size limits and file format types.
+   */
   const validateFile = (file: File): boolean => {
-    const maxSize = 100 * 1024 * 1024
+    const maxSize = 100 * 1024 * 1024 // 100MB size limit
     if (file.size > maxSize) {
       setMediaErrors(prev => [...prev, `${file.name} exceeds 100MB limit`])
       return false
@@ -45,6 +57,9 @@ export function PostComposer({ onPostCreated, compact }: PostComposerProps) {
     return true
   }
 
+  /**
+   * Appends validated files to local state and triggers Blob preview creation.
+   */
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files) return
@@ -66,20 +81,30 @@ export function PostComposer({ onPostCreated, compact }: PostComposerProps) {
     setMediaPreviews(prev => [...prev, ...newPreviews])
     setMediaFiles(prev => [...prev, ...validFiles])
 
+    // Clean up input value to enable triggering on identical selections
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
   }
 
+  /**
+   * Clears out media parsing errors.
+   */
   const clearMediaErrors = () => {
     setMediaErrors([])
   }
 
+  /**
+   * Discards selected media previews by index.
+   */
   const removeMedia = (index: number) => {
     setMediaPreviews(prev => prev.filter((_, i) => i !== index))
     setMediaFiles(prev => prev.filter((_, i) => i !== index))
   }
 
+  /**
+   * Infers media types (image/video) based on URL file extensions.
+   */
   const getMediaType = (previewUrl: string): "image" | "video" => {
     if (previewUrl.includes('.mp4') || previewUrl.includes('.mov') || previewUrl.includes('.webm')) {
       return 'video'
@@ -87,6 +112,9 @@ export function PostComposer({ onPostCreated, compact }: PostComposerProps) {
     return 'image'
   }
 
+  /**
+   * Formats tags list and submits post payload.
+   */
   const handleSubmit = useCallback(async () => {
     if (!content.trim() && mediaPreviews.length === 0) return
 
@@ -114,6 +142,7 @@ export function PostComposer({ onPostCreated, compact }: PostComposerProps) {
         tags: tagList,
       })
 
+      // Clean up local editor states
       setContent("")
       setTags("")
       setMediaPreviews([])
@@ -128,6 +157,9 @@ export function PostComposer({ onPostCreated, compact }: PostComposerProps) {
     }
   }, [content, tags, mediaPreviews, mediaFiles, onPostCreated])
 
+  /**
+   * Adds Ctrl+Enter / Cmd+Enter hotkey shortcuts to publish.
+   */
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
       handleSubmit()

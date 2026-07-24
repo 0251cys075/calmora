@@ -1,12 +1,21 @@
+/**
+ * @file route.ts
+ * @description Next.js API route handler for mock user habit storage/listing.
+ * Authenticates users using JWT session cookies and performs local memory cache writes.
+ */
+
 import { NextRequest, NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import jwt from "jsonwebtoken"
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
 
-// In production, use a real database
+// Mock habit storage grouping arrays of habits by userId keys
 let habits: Record<string, any[]> = {}
 
+/**
+ * Extracts and decodes userId from the local HTTP-only session cookie.
+ */
 async function getUserId(req: NextRequest): Promise<string | null> {
   try {
     const cookieStore = await cookies()
@@ -20,6 +29,10 @@ async function getUserId(req: NextRequest): Promise<string | null> {
   }
 }
 
+/**
+ * @route GET /api/habits
+ * @desc Retrieves all cached mock habits belonging to the authenticated user.
+ */
 export async function GET(req: NextRequest) {
   try {
     const userId = await getUserId(req)
@@ -35,6 +48,10 @@ export async function GET(req: NextRequest) {
   }
 }
 
+/**
+ * @route POST /api/habits
+ * @desc Appends a new habit template object to the user's mock store array.
+ */
 export async function POST(req: NextRequest) {
   try {
     const userId = await getUserId(req)

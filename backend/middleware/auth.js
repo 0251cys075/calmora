@@ -1,6 +1,16 @@
+/**
+ * @file auth.js
+ * @description JWT verification middlewares to secure backend API routes.
+ * Provides mandatory token authentication, optional tracking authentication, and admin access control.
+ */
+
 const jwt = require("jsonwebtoken")
 const User = require("../models/User")
 
+/**
+ * Strict authentication middleware. Validates JWT in authorization header.
+ * Attaches the user instance (minus password) to req.user, or returns 401 Unauthorized.
+ */
 async function auth(req, res, next) {
   try {
     const authHeader = req.headers.authorization
@@ -24,6 +34,10 @@ async function auth(req, res, next) {
   }
 }
 
+/**
+ * Optional authentication middleware. Attempts to validate the JWT header if present.
+ * If validation succeeds, attaches the user to req.user; otherwise, silently proceeds without failing.
+ */
 async function optionalAuth(req, res, next) {
   try {
     const authHeader = req.headers.authorization
@@ -39,6 +53,10 @@ async function optionalAuth(req, res, next) {
   }
 }
 
+/**
+ * Strict Administrator authentication middleware. Secures endpoints that require root admin access.
+ * Performs standard JWT validation and checks if user.isAdmin is truthy.
+ */
 async function adminAuth(req, res, next) {
   await auth(req, res, () => {
     if (!req.user || !req.user.isAdmin) {

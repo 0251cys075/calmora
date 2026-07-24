@@ -1,3 +1,11 @@
+/**
+ * @file page.tsx
+ * @description React page component for wellness Reports.
+ * Computes average wellness metrics (mood, habit consistency, journal counts)
+ * by pulling records from localStorage (calmora_mood_entries, calmora_habits, calmora_journal_entries).
+ * Renders animated custom bar charts for mood/habit trends and supports CSV generation downloads.
+ */
+
 "use client"
 
 import { GlassCard } from "@/components/ui/glass-card"
@@ -33,6 +41,9 @@ interface HabitData {
   streak?: number
 }
 
+/**
+ * Safely fetches and parses JSON arrays from LocalStorage namespaces.
+ */
 function loadFromStorage<T>(key: string): T | null {
   if (typeof window === "undefined") return null
   try {
@@ -43,6 +54,9 @@ function loadFromStorage<T>(key: string): T | null {
   }
 }
 
+/**
+ * Generates an array of date metadata mappings representing the trailing active period.
+ */
 function getPeriodDays(period: "weekly" | "monthly"): { label: string; date: Date }[] {
   const count = period === "weekly" ? 7 : 30
   const days: { label: string; date: Date }[] = []
@@ -57,15 +71,24 @@ function getPeriodDays(period: "weekly" | "monthly"): { label: string; date: Dat
   return days
 }
 
+/**
+ * Formats a date string to day of the week abbreviation.
+ */
 function getDayKey(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("en-US", { weekday: "short" })
 }
 
+/**
+ * Validates if target date falls between start and end boundaries.
+ */
 function dateInRange(d: Date, start: Date, end: Date): boolean {
   const t = d.getTime()
   return t >= start.getTime() && t <= end.getTime()
 }
 
+/**
+ * Synthesizes a text blob to trigger local CSV file download routines.
+ */
 function downloadCSV(data: string, filename: string) {
   const blob = new Blob([data], { type: "text/csv;charset=utf-8;" })
   const link = document.createElement("a")
@@ -79,6 +102,7 @@ export default function ReportsPage() {
   const [activePeriod, setActivePeriod] = useState<"weekly" | "monthly">("weekly")
   const [selectedInsight, setSelectedInsight] = useState<{ title: string; body: string; image: string } | null>(null)
 
+  // Use Memo to prevent recalculating metrics on simple state switches
   const stats = useMemo(() => {
     const moodEntries: MoodEntry[] = loadFromStorage<MoodEntry[]>("calmora_mood_entries") ?? []
     const habits: HabitData[] = loadFromStorage<HabitData[]>("calmora_habits") ?? []
@@ -100,6 +124,7 @@ export default function ReportsPage() {
     const periodDays = getPeriodDays(activePeriod)
     const periodCount = periodDays.length
 
+    // Calculate rolling average mood per day
     const dailyMood = periodDays.map(({ label: dayLabel, date }) => {
       const dayStart = new Date(date)
       dayStart.setHours(0, 0, 0, 0)
@@ -115,6 +140,7 @@ export default function ReportsPage() {
       return 0
     })
 
+    // Calculate habit completion percentage per day
     const dailyHabits = periodDays.map(({ date: dayDate }) => {
       const dayStart = new Date(dayDate)
       dayStart.setHours(0, 0, 0, 0)
@@ -130,6 +156,7 @@ export default function ReportsPage() {
       return allHabitsCount > 0 ? Math.round((completed / allHabitsCount) * 100) : 0
     })
 
+    // Calculate journal activity per day
     const journalDays = periodDays.map(({ date }) => {
       const dayStart = new Date(date)
       dayStart.setHours(0, 0, 0, 0)
@@ -144,6 +171,8 @@ export default function ReportsPage() {
     const journalCount = journalDays.filter(Boolean).length
     const avgMood = dailyMood.filter((m) => m > 0)
     const avgMoodVal = avgMood.length > 0 ? avgMood.reduce((s, m) => s + m, 0) / avgMood.length : 0
+    
+    // Formula weight parameters: mood = 40%, habit completion = 30%, journal activity = 30%
     const calmScore = allHabitsCount > 0 || moodEntries.length > 0
       ? Math.round((avgMoodVal / 5) * 40 + (habitScore / 100) * 30 + (journalCount / periodCount) * 30)
       : 0
@@ -182,6 +211,9 @@ export default function ReportsPage() {
     }
   }, [activePeriod])
 
+  /**
+   * Compiles computed daily statistics into a CSV string format and initiates download.
+   */
   const handleDownload = useCallback(() => {
     const header = "Metric,Value\n"
     const rows = [

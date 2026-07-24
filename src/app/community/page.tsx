@@ -1,3 +1,11 @@
+/**
+ * @file page.tsx
+ * @description React page component for the Community Feed & Forums section.
+ * Renders support posts with tag filters, implements infinite scrolling utilizing
+ * IntersectionObserver API queries, renders active search, direct messages, notifications,
+ * and admin moderation tool panels, and loads a sidebar with user leaderboard lists.
+ */
+
 "use client"
 
 import { motion } from "framer-motion"
@@ -16,6 +24,7 @@ import { communityApi } from "@/lib/community-api"
 import { useAuth } from "@/lib/hooks/useAuth"
 import type { PostData } from "@/lib/community-api"
 
+// Daily inspiration prompt questions
 const prompts = [
   "What small win are you celebrating today?",
   "Share one thing you're grateful for",
@@ -36,6 +45,7 @@ export default function CommunityPage() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [tagFilter, setTagFilter] = useState("")
 
+  // Submodal toggling values
   const [showSearch, setShowSearch] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [showMessages, setShowMessages] = useState(false)
@@ -45,7 +55,9 @@ export default function CommunityPage() {
   const hasMoreRef = useRef(true)
   const loadMoreRef = useRef<HTMLDivElement>(null)
 
-  // Fetch posts cleanly with ref guards to prevent overlapping requests
+  /**
+   * Fetch posts cleanly with ref guards to prevent overlapping requests.
+   */
   const fetchPosts = useCallback(async (pageNum: number, tag: string, isAppend = false) => {
     if (isFetchingRef.current) return
     isFetchingRef.current = true
@@ -122,19 +134,31 @@ export default function CommunityPage() {
     }
   }, [hasMore, loading, loadingMore, tagFilter, fetchPosts])
 
+  /**
+   * Filters the main feed layout using selection tags.
+   */
   const handleSelectTag = useCallback((tag: string) => {
     if (tagFilter === tag) return
     setTagFilter(tag)
   }, [tagFilter])
 
+  /**
+   * Prepend new posts directly to top of local array feed list.
+   */
   const handlePostCreated = useCallback((post: PostData) => {
     setPosts((prev) => [post, ...prev])
   }, [])
 
+  /**
+   * Callback updates a specific edited post in the local state.
+   */
   const handlePostUpdated = useCallback((updatedPost: PostData) => {
     setPosts((prev) => prev.map((p) => (p._id === updatedPost._id ? updatedPost : p)))
   }, [])
 
+  /**
+   * Callback removes a specific deleted post ID from local state.
+   */
   const handlePostDeleted = useCallback((id: string) => {
     setPosts((prev) => prev.filter((p) => p._id !== id))
   }, [])
@@ -144,7 +168,7 @@ export default function CommunityPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header with control triggers */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
         <div className="flex items-center justify-between">
           <div>
@@ -186,7 +210,7 @@ export default function CommunityPage() {
         </div>
       </motion.div>
 
-      {/* Daily Prompt */}
+      {/* Daily Prompt section */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
         <GlassCard>
           <div className="flex items-center gap-3 mb-3">
@@ -205,11 +229,11 @@ export default function CommunityPage() {
         </GlassCard>
       </motion.div>
 
-      {/* Main content grid */}
+      {/* Main content grid layout */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Feed Column */}
         <div className="lg:col-span-3 space-y-4 min-h-[500px]">
-          {/* Tag filters */}
+          {/* Tag filter selectors */}
           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
             {FILTER_TAGS.map((tag) => (
               <button
@@ -257,7 +281,7 @@ export default function CommunityPage() {
                 />
               ))}
 
-              {/* Infinite scroll loader trigger */}
+              {/* Infinite scroll loader trigger point */}
               <div ref={loadMoreRef} className="py-4 text-center">
                 {loadingMore && (
                   <div className="flex items-center justify-center gap-2 text-white/40 text-sm">
@@ -310,7 +334,7 @@ export default function CommunityPage() {
         </div>
       </div>
 
-      {/* Modals */}
+      {/* Submodal overlay panels */}
       <SearchModal open={showSearch} onClose={() => setShowSearch(false)} />
       <NotificationPanel open={showNotifications} onClose={() => setShowNotifications(false)} />
       <MessageModal open={showMessages} onClose={() => setShowMessages(false)} />

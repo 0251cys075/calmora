@@ -1,3 +1,11 @@
+/**
+ * @file page.tsx
+ * @description Primary landing page / dashboard page of Calmora.
+ * If the user is unauthenticated, displays the promo landing screen.
+ * Otherwise, queries local storage and auth details to construct user metrics,
+ * daily relaxation nudges, weekly mood histograms, quick links, and challenge cards.
+ */
+
 "use client"
 
 import { GlassCard } from "@/components/ui/glass-card"
@@ -21,6 +29,7 @@ import { WeeklyInsight } from "@/components/dashboard/WeeklyInsight"
 import { StreakNudge } from "@/components/dashboard/StreakNudge"
 import { ConfettiCelebration } from "@/components/dashboard/ConfettiCelebration"
 
+// Framer motion list container animation variants
 const container = {
   hidden: { opacity: 0 },
   show: {
@@ -29,11 +38,15 @@ const container = {
   },
 }
 
+// Framer motion list item animation variants
 const item = {
   hidden: { opacity: 0, y: 20 },
   show: { opacity: 1, y: 0 },
 }
 
+/**
+ * Returns a list of Date boundaries representing the last 7 calendar days.
+ */
 function getLast7Days(): Date[] {
   const days: Date[] = []
   for (let i = 6; i >= 0; i--) {
@@ -48,6 +61,8 @@ function getLast7Days(): Date[] {
 export default function Home() {
   const { user, isAuthenticated, loading } = useAuth()
   const quote = getDailyQuote()
+  
+  // Custom LocalStorage hooks loading statistics
   const [moodEntries] = useLocalStorage<{ mood: number; note: string; date: string }[]>("calmora_mood_entries", [])
   const [habits] = useLocalStorage<{ name: string; logs: { date: string; completed: boolean }[] }[]>("calmora_habits", [])
   const [journalEntries] = useLocalStorage<{ _id: string; title: string; content: string; date: string }[]>("calmora_journal_entries", [])
@@ -57,6 +72,7 @@ export default function Home() {
   const last7Days = getLast7Days()
   const dayLabels = ["M","T","W","T","F","S","S"]
 
+  // Map weekly mood average points to percentage values for rendering the progress histogram bars
   const weeklyData = last7Days.map((day) => {
     const dayStart = new Date(day)
     dayStart.setHours(0, 0, 0, 0)
@@ -74,6 +90,8 @@ export default function Home() {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const todayTime = today.getTime()
+  
+  // Count how many habits have been logged completed today
   const habitsToday = habits.filter((h) =>
     (h.logs || []).some((l) => {
       const ld = new Date(l.date)
@@ -82,6 +100,7 @@ export default function Home() {
     })
   ).length
 
+  // Loading indicator overlay
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center">
@@ -93,6 +112,7 @@ export default function Home() {
     )
   }
 
+  // Marketing page overlay when guest sessions are unauthenticated
   if (!isAuthenticated) {
     return <LandingPage />
   }

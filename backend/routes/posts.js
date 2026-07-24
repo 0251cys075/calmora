@@ -1,3 +1,9 @@
+/**
+ * @file posts.js
+ * @description Express routes handling post creation, feed queries, liking, reposting, 
+ * saving, pinning, and reporting posts. Includes inline text moderation scanning filters.
+ */
+
 const express = require("express")
 const router = express.Router()
 const Post = require("../models/Post")
@@ -6,11 +12,16 @@ const Notification = require("../models/Notification")
 const Block = require("../models/Block")
 const { auth, optionalAuth } = require("../middleware/auth")
 
+/**
+ * Scans text content for spam, abusive terms, and harassment words.
+ * @param text - The plaintext post content to scan
+ * @returns Object with boolean moderation flags
+ */
 function moderateContent(text) {
   const spamPatterns = [
     /\b(buy now|click here|free money|subscribe|follow me|check out my)\b/i,
-    /(https?:\/\/[^\s]+){3,}/,
-    /([!?.]){5,}/,
+    /(https?:\/\/[^\s]+){3,}/, // Blocks post containing more than 3 links
+    /([!?.]){5,}/, // Excessive punctuation spam
   ]
   const abusePatterns = [
     /\b(fuck|shit|ass|bitch|damn|dick|piss|bastard)\b/i,
@@ -19,18 +30,26 @@ function moderateContent(text) {
     /\b(spam|scam|fraud)\b/i,
   ]
   let flags = { isSpam: false, isAbusive: false, isHarassment: false, isHarmful: false }
+  
   for (const pattern of spamPatterns) {
     if (pattern.test(text)) { flags.isSpam = true; break }
   }
   for (const pattern of abusePatterns) {
     if (pattern.test(text)) { flags.isAbusive = true; break }
   }
+  
   const harassmentWords = /\b(idiot|stupid|dumb|loser|worthless|ugly|fat|retard|crazy)\b/i
   if (harassmentWords.test(text)) flags.isHarassment = true
+  
+  // Harmful flag triggers if content is both abusive and harassing
   if (flags.isAbusive && flags.isHarassment) flags.isHarmful = true
   return flags
 }
 
+/**
+ * @route GET /api/posts/feed
+ * @desc Retrieves a paginated feed of posts, filtering out archived/removed posts and posts from blocked users.
+ */
 router.get("/feed", optionalAuth, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1
@@ -40,11 +59,13 @@ router.get("/feed", optionalAuth, async (req, res) => {
     const hashtag = req.query.hashtag
     const author = req.query.author
 
+    // Filter out posts that are archived or removed by moderation
     let query = { isArchived: false, moderationAction: { $ne: "removed" } }
     if (tag) query.tags = tag
     if (hashtag) query.hashtags = hashtag.toLowerCase()
     if (author) query.author = author
 
+    // Filter out authors blocked by the current user
     if (req.user) {
       const blockedUsers = await Block.find({ blocker: req.user._id }).select("blocked")
       const blockedIds = blockedUsers.map((b) => b.blocked)
@@ -70,6 +91,10 @@ router.get("/feed", optionalAuth, async (req, res) => {
   }
 })
 
+/**
+ * @route GET /api/posts/:id
+ * @desc Retrieves a single post by ID, populating authors and repost details.
+ */
 router.get("/:id", optionalAuth, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id)
@@ -82,6 +107,10 @@ router.get("/:id", optionalAuth, async (req, res) => {
   }
 })
 
+/**
+ * @route POST /api/posts
+ * @desc Creates a new post. Automatically moderates the text content and rewards the creator with XP.
+ */
 router.post("/", auth, async (req, res) => {
   try {
     const { content, media, tags, mentions } = req.body
@@ -89,12 +118,14 @@ router.post("/", auth, async (req, res) => {
       return res.status(400).json({ error: "Post content is required" })
     }
 
+    // Run text analysis
     const moderation = moderateContent(content)
     let moderationAction = "approved"
     if (moderation.isHarmful) moderationAction = "removed"
     else if (moderation.isAbusive) moderationAction = "flagged"
     else if (moderation.isSpam) moderationAction = "spam"
 
+    // Parse hashtags (#topic) and mentions (@username)
     const hashtags = [...new Set(content.match(/#[\w-]+/gi)?.map((h) => h.slice(1).toLowerCase()) || [])]
     const mentionNames = [...new Set(content.match(/@[\w-]+/gi)?.map((m) => m.slice(1).toLowerCase()) || [])]
     const mentionedUsers = mentionNames.length > 0
@@ -117,10 +148,12 @@ router.post("/", auth, async (req, res) => {
           : moderation.isSpam ? "Flagged as spam" : undefined,
     })
 
+    // Reward user for engagement activity
     await User.findByIdAndUpdate(req.user._id, {
       $inc: { postCount: 1, xp: 10, reputation: 2 },
     })
 
+    // Send notifications to mentioned users
     for (const mentionedUser of mentionedUsers) {
       if (mentionedUser._id.toString() !== req.user._id.toString()) {
         await Notification.create({
@@ -142,6 +175,10 @@ router.post("/", auth, async (req, res) => {
   }
 })
 
+/**
+ * @route PATCH /api/posts/:id
+ * @desc Updates an existing post (e.g., content edits, media updates, tags). Re-runs moderation.
+ */
 router.patch("/:id", auth, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id)
@@ -175,6 +212,10 @@ router.patch("/:id", auth, async (req, res) => {
   }
 })
 
+/**
+ * @route DELETE /api/posts/:id
+ * @desc Deletes a post. Only allowed for post authors or admins.
+ */
 router.delete("/:id", auth, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id)
@@ -190,6 +231,10 @@ router.delete("/:id", auth, async (req, res) => {
   }
 })
 
+/**
+ * @route POST /api/posts/:id/like
+ * @desc Toggles the like state on a post. Sends a notification to the author.
+ */
 router.post("/:id/like", auth, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id)
@@ -218,6 +263,10 @@ router.post("/:id/like", auth, async (req, res) => {
   }
 })
 
+/**
+ * @route POST /api/posts/:id/repost
+ * @desc Reposts another user's post to the user's feed, adding an optional commentary string.
+ */
 router.post("/:id/repost", auth, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id)
@@ -248,6 +297,10 @@ router.post("/:id/repost", auth, async (req, res) => {
   }
 })
 
+/**
+ * @route POST /api/posts/:id/save
+ * @desc Toggles the bookmark save state of a post for the current user.
+ */
 router.post("/:id/save", auth, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id)
@@ -268,6 +321,10 @@ router.post("/:id/save", auth, async (req, res) => {
   }
 })
 
+/**
+ * @route POST /api/posts/:id/pin
+ * @desc Pins a post to the top of the user's profile feed. Unpins all other posts first.
+ */
 router.post("/:id/pin", auth, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id)
@@ -284,6 +341,10 @@ router.post("/:id/pin", auth, async (req, res) => {
   }
 })
 
+/**
+ * @route POST /api/posts/:id/report
+ * @desc Increments report flags on a post and creates a new moderation Report ticket.
+ */
 router.post("/:id/report", auth, async (req, res) => {
   try {
     const post = await Post.findByIdAndUpdate(req.params.id, { $inc: { reportCount: 1 } })

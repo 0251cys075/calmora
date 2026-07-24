@@ -1,3 +1,12 @@
+/**
+ * @file page.tsx
+ * @description React page component for Student Wellness.
+ * Displays academic tools such as:
+ * 1. A Study Planner list where completed state maps to localStorage keys.
+ * 2. A Focus pomodoro timer (supporting customizable length pre-sets and pauses).
+ * 3. Wellness resource modals detailing exam anxiety, career choice struggles, and recovery recommendations.
+ */
+
 "use client"
 
 import { GlassCard } from "@/components/ui/glass-card"
@@ -20,13 +29,21 @@ export default function StudentPage() {
   const [timerActive, setTimerActive] = useState(false)
   const [timerMode, setTimerMode] = useState<"focus" | "break">("focus")
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  
+  // Persisted task completions for the study planner
   const [completedSessions, setCompletedSessions] = useLocalStorage<Record<string, boolean>>("calmora_student_sessions", {})
   const [activeResource, setActiveResource] = useState<{ title: string; body: string } | null>(null)
 
+  /**
+   * Toggles completion status of specific subjects in the Study Planner.
+   */
   const toggleSession = (subject: string) => {
     setCompletedSessions((prev) => ({ ...prev, [subject]: !prev[subject] }))
   }
 
+  /**
+   * Starts the countdown timer interval.
+   */
   const startTimer = () => {
     if (timeLeft <= 0) {
       setTimeLeft(timerMode === "focus" ? 25 * 60 : 5 * 60)
@@ -34,22 +51,34 @@ export default function StudentPage() {
     setTimerActive(true)
   }
 
+  /**
+   * Pauses the active focus timer.
+   */
   const pauseTimer = () => {
     setTimerActive(false)
   }
 
+  /**
+   * Resets the active timer duration back to the default 25 minutes focus block.
+   */
   const resetTimer = () => {
     setTimerActive(false)
     setTimerMode("focus")
     setTimeLeft(25 * 60)
   }
 
+  /**
+   * Adjusts the current timer focus duration length (e.g. 5, 25, or 50 minutes).
+   */
   const setDuration = (minutes: number) => {
     setTimerActive(false)
     setTimerMode("focus")
     setTimeLeft(minutes * 60)
   }
 
+  /**
+   * Switches the active mode to a break block (5 or 15 minute presets).
+   */
   const startBreak = () => {
     setTimerActive(false)
     const breakMinutes = timerMode === "focus" ? 5 : 15
@@ -57,6 +86,7 @@ export default function StudentPage() {
     setTimeLeft(breakMinutes * 60)
   }
 
+  // Side-effect: Countdown ticker interval updates
   useEffect(() => {
     if (timerActive && timeLeft > 0) {
       timerRef.current = setInterval(() => {
@@ -68,6 +98,7 @@ export default function StudentPage() {
     }
   }, [timerActive, timeLeft])
 
+  // Side-effect: Automatically shifts modes when time reaches zero
   useEffect(() => {
     if (timeLeft === 0 && timerActive) {
       setTimerActive(false)
@@ -81,12 +112,16 @@ export default function StudentPage() {
     }
   }, [timeLeft, timerActive, timerMode])
 
+  /**
+   * Formats raw remaining seconds to MM:SS string.
+   */
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60)
     const s = seconds % 60
     return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
   }
 
+  // Articles content database lookup records
   const resourceContents: Record<string, string> = {
     "Exam Stress Guide": "Exam stress is a common challenge faced by students at all levels. The key to managing it lies in preparation, mindset, and self-care.\n\nEffective Study Strategies: Break your study material into manageable chunks using the Pomodoro Technique — 25 minutes of focused study followed by a 5-minute break. Use active recall and spaced repetition rather than passive rereading.\n\nMindset Shifts: Replace 'I have to get a perfect score' with 'I will do my best.' Perfectionism fuels anxiety. Focus on progress, not perfection.\n\nPhysical Wellbeing: Sleep 7-9 hours before exams. Eat balanced meals. Stay hydrated. Exercise for 20 minutes daily to reduce cortisol levels.\n\nDuring the Exam: Arrive early. Read instructions carefully. Start with questions you know. If you feel panicked, pause and take three slow breaths before continuing.\n\nAfter the Exam: Avoid immediate post-mortem discussions. Reward yourself for your effort regardless of the outcome. Every exam is a learning experience.",
     "Career Anxiety": "Career anxiety — the fear of making the wrong choice, not being good enough, or failing professionally — is one of the most common sources of stress for students and young professionals.\n\nNormalize Uncertainty: No one has it all figured out. Career paths are rarely linear. Most professionals change roles 5-7 times in their lifetime. The goal isn't to find the 'perfect' path but to take the next right step.\n\nBuild Confidence Through Action: Anxiety shrinks when you take small, concrete steps. Update your LinkedIn profile. Research one industry. Have one informational interview. Action counters paralysis.\n\nFocus on Transferable Skills: Communication, problem-solving, adaptability, and teamwork are valuable across every field. You already have more skills than you think.\n\nSeparate Identity from Career: Your worth is not your job title. Cultivate hobbies, relationships, and interests outside of work. A fulfilling life includes but is not limited to your career.\n\nSeek Mentorship: Talk to professionals in fields you're curious about. Most people are happy to share their journey. Their stories will show you that setbacks are normal and surmountable.",
@@ -315,6 +350,7 @@ export default function StudentPage() {
         </div>
       </motion.div>
 
+      {/* Resource Modal Dialogue Box */}
       <AnimatePresence>
         {activeResource && (
           <motion.div

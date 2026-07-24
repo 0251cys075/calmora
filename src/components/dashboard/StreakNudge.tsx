@@ -1,3 +1,10 @@
+/**
+ * @file StreakNudge.tsx
+ * @description React component rendering a "Streak at Risk" warning card.
+ * Triggers during late evening hours (>= 8 PM) if the user has an active streak
+ * but has not logged all daily habits for today, encouraging immediate completion.
+ */
+
 "use client"
 
 import { useMemo } from "react"
@@ -12,12 +19,16 @@ interface StreakNudgeProps {
   streak: number
 }
 
+/**
+ * Returns true if the client current hour is 8 PM (20:00) or later.
+ */
 function isLateEvening(): boolean {
   const hour = new Date().getHours()
   return hour >= 20
 }
 
 export function StreakNudge({ habits, streak }: StreakNudgeProps) {
+  // Evaluates show trigger parameters: late evening, active streak, incomplete habits
   const show = useMemo(() => {
     if (!isLateEvening()) return false
     if (streak <= 0) return false
@@ -40,6 +51,7 @@ export function StreakNudge({ habits, streak }: StreakNudgeProps) {
 
   if (!show) return null
 
+  // Filter out remaining habits that haven't been completed today
   const incomplete = habits.filter((h) =>
     !(h.logs || []).some((l) => {
       const ld = new Date(l.date)
@@ -87,6 +99,7 @@ export function StreakNudge({ habits, streak }: StreakNudgeProps) {
   )
 }
 
+// Framer motion entry animation parameters
 const item = {
   hidden: { opacity: 0, y: -10, scale: 0.95 },
   show: { opacity: 1, y: 0, scale: 1 },

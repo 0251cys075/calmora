@@ -1,3 +1,10 @@
+/**
+ * @file ModerationPanel.tsx
+ * @description React component rendering the administrator/moderator panel.
+ * Provides views to review user reports, approve/remove auto-flagged posts,
+ * inspect global system statistics, and ban users for policy violations.
+ */
+
 "use client"
 
 import { motion, AnimatePresence } from "framer-motion"
@@ -30,6 +37,9 @@ interface ModStats {
 
 const API = "/api"
 
+/**
+ * Generic API fetcher that extracts token from document cookie and applies Bearer header.
+ */
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
   const token = document.cookie.replace(/(?:(?:^|.*;\s*)calmora_token\s*=\s*([^;]*).*$)|^.*$/, "$1")
   const headers: Record<string, string> = { "Content-Type": "application/json" }
@@ -46,10 +56,14 @@ export function ModerationPanel({ open, onClose }: { open: boolean; onClose: () 
   const [stats, setStats] = useState<ModStats | null>(null)
   const [loading, setLoading] = useState(true)
 
+  // Trigger data loads when the panel modal becomes open
   useEffect(() => {
     if (open) loadAll()
   }, [open])
 
+  /**
+   * Performs concurrent API fetches to load reports, flags, and stats.
+   */
   const loadAll = async () => {
     setLoading(true)
     try {
@@ -67,6 +81,9 @@ export function ModerationPanel({ open, onClose }: { open: boolean; onClose: () 
     setLoading(false)
   }
 
+  /**
+   * Resolves action on a user report ticket (Action Taken, Dismissed, Ban User).
+   */
   const handleAction = useCallback(async (reportId: string, status: string, action?: string) => {
     try {
       await apiFetch(`/admin/reports/${reportId}`, {
@@ -77,6 +94,9 @@ export function ModerationPanel({ open, onClose }: { open: boolean; onClose: () 
     } catch {}
   }, [])
 
+  /**
+   * Resolves manual override status of automatically flagged posts (Approve, Remove).
+   */
   const handleModerate = useCallback(async (postId: string, action: string) => {
     try {
       await apiFetch(`/admin/posts/${postId}/moderate`, {

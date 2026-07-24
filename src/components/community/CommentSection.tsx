@@ -1,3 +1,10 @@
+/**
+ * @file CommentSection.tsx
+ * @description React component to display and interact with comments on a community post.
+ * Manages operations including fetching comments, submitting new ones, editing/deleting owned responses,
+ * toggling likes, and creating nested replies (hierarchical threads).
+ */
+
 "use client"
 
 import { Avatar } from "@/components/ui/avatar"
@@ -18,15 +25,18 @@ interface CommentSectionProps {
 export function CommentSection({ postId, onCommentCountChange }: CommentSectionProps) {
   const { user } = useAuth()
   const router = useRouter()
+  
+  // UI and dataset states
   const [comments, setComments] = useState<CommentData[]>([])
   const [loading, setLoading] = useState(true)
   const [newComment, setNewComment] = useState("")
-  const [replyTo, setReplyTo] = useState<string | null>(null)
+  const [replyTo, setReplyTo] = useState<string | null>(null) // Contains commentId being replied to
   const [replyContent, setReplyContent] = useState("")
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null) // Contains commentId being edited
   const [editContent, setEditContent] = useState("")
-  const [showReplies, setShowReplies] = useState<Record<string, boolean>>({})
+  const [showReplies, setShowReplies] = useState<Record<string, boolean>>({}) // Tracks expand state of nested replies
 
+  // Reset state values and fetch new comments whenever the postId changes
   useEffect(() => {
     loadComments()
     return () => {
@@ -40,6 +50,9 @@ export function CommentSection({ postId, onCommentCountChange }: CommentSectionP
     }
   }, [postId])
 
+  /**
+   * Fetches comment dataset from backend API.
+   */
   const loadComments = async () => {
     try {
       const res = await communityApi.getComments(postId)
@@ -49,6 +62,9 @@ export function CommentSection({ postId, onCommentCountChange }: CommentSectionP
     }
   }
 
+  /**
+   * Submits a new top-level comment.
+   */
   const handleSubmit = useCallback(async () => {
     if (!newComment.trim()) return
     try {
@@ -59,6 +75,9 @@ export function CommentSection({ postId, onCommentCountChange }: CommentSectionP
     } catch {}
   }, [postId, newComment, onCommentCountChange, comments.length])
 
+  /**
+   * Submits a reply nested under a parent comment.
+   */
   const handleReply = useCallback(async (parentId: string) => {
     if (!replyContent.trim()) return
     try {
@@ -75,6 +94,9 @@ export function CommentSection({ postId, onCommentCountChange }: CommentSectionP
     } catch {}
   }, [postId, replyContent])
 
+  /**
+   * Toggles like state on a comment or nested reply.
+   */
   const handleLike = useCallback(async (commentId: string) => {
     try {
       const res = await communityApi.likeComment(commentId)
@@ -95,6 +117,9 @@ export function CommentSection({ postId, onCommentCountChange }: CommentSectionP
     } catch {}
   }, [])
 
+  /**
+   * Deletes a top-level comment.
+   */
   const handleDelete = useCallback(async (commentId: string) => {
     if (!confirm("Delete this comment?")) return
     try {
@@ -104,6 +129,9 @@ export function CommentSection({ postId, onCommentCountChange }: CommentSectionP
     } catch {}
   }, [onCommentCountChange, comments.length])
 
+  /**
+   * Edits the body content of a comment.
+   */
   const handleEdit = useCallback(async (commentId: string) => {
     if (!editContent.trim()) return
     try {
@@ -115,6 +143,9 @@ export function CommentSection({ postId, onCommentCountChange }: CommentSectionP
     } catch {}
   }, [editContent])
 
+  /**
+   * Formats static ISO timestamps into human-readable relative durations.
+   */
   const timeAgo = (date: string) => {
     const diff = Date.now() - new Date(date).getTime()
     const mins = Math.floor(diff / 60000)

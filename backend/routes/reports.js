@@ -1,3 +1,10 @@
+/**
+ * @file reports.js
+ * @description Express routes handling moderation report submissions, 
+ * user blocking toggle logic (which blocks direct messaging and severs social graphs), 
+ * and retrieving lists of currently blocked profiles.
+ */
+
 const express = require("express")
 const router = express.Router()
 const Report = require("../models/Report")
@@ -7,6 +14,10 @@ const Comment = require("../models/Comment")
 const User = require("../models/User")
 const { auth } = require("../middleware/auth")
 
+/**
+ * @route POST /api/reports
+ * @desc Submits a new moderation report flagging a specific post, comment, message, or user.
+ */
 router.post("/", auth, async (req, res) => {
   try {
     const { targetType, target, reason, description } = req.body
@@ -14,6 +25,7 @@ router.post("/", auth, async (req, res) => {
       return res.status(400).json({ error: "targetType, target, and reason are required" })
     }
 
+    // Check if the user has already reported this target and it is still pending review
     const existingReport = await Report.findOne({
       reporter: req.user._id,
       targetType,
@@ -39,6 +51,10 @@ router.post("/", auth, async (req, res) => {
   }
 })
 
+/**
+ * @route POST /api/reports/block/:userId
+ * @desc Toggles user block status. If blocking, removes mutual following relations.
+ */
 router.post("/block/:userId", auth, async (req, res) => {
   try {
     const { userId } = req.params
@@ -53,6 +69,8 @@ router.post("/block/:userId", auth, async (req, res) => {
     }
 
     await Block.create({ blocker: req.user._id, blocked: userId })
+    
+    // Sever mutual follow relationships
     await Follow.deleteOne({ follower: req.user._id, following: userId })
     await Follow.deleteOne({ follower: userId, following: req.user._id })
     await User.findByIdAndUpdate(req.user._id, { $inc: { followingCount: -1 } })
@@ -64,6 +82,10 @@ router.post("/block/:userId", auth, async (req, res) => {
   }
 })
 
+/**
+ * @route GET /api/reports/blocked
+ * @desc Retrieves all profiles blocked by the current authenticated user.
+ */
 router.get("/blocked", auth, async (req, res) => {
   try {
     const blocks = await Block.find({ blocker: req.user._id })
@@ -76,6 +98,10 @@ router.get("/blocked", auth, async (req, res) => {
 
 module.exports = router
 
+/**
+ * @route POST /api/reports/report
+ * @desc Alternative route for submitting a report without duplicate verification checks.
+ */
 router.post("/report", auth, async (req, res) => {
   try {
     const { targetType, target, reason, description } = req.body

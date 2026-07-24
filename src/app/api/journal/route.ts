@@ -1,12 +1,21 @@
+/**
+ * @file route.ts
+ * @description Next.js API route handler for mock private journal storage.
+ * Reads user identity from JWT cookies and saves logs locally in memory.
+ */
+
 import { NextRequest, NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import jwt from "jsonwebtoken"
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
 
-// In production, use a real database
+// Mock journal entries storage grouped by userId keys
 let journalEntries: Record<string, any[]> = {}
 
+/**
+ * Extracts and decodes userId from the local HTTP-only session cookie.
+ */
 async function getUserId(): Promise<string | null> {
   try {
     const cookieStore = await cookies()
@@ -20,6 +29,10 @@ async function getUserId(): Promise<string | null> {
   }
 }
 
+/**
+ * @route GET /api/journal
+ * @desc Retrieves all cached journal entries belonging to the authenticated user.
+ */
 export async function GET(req: NextRequest) {
   try {
     const userId = await getUserId()
@@ -35,6 +48,10 @@ export async function GET(req: NextRequest) {
   }
 }
 
+/**
+ * @route POST /api/journal
+ * @desc Creates a new journal entry and unshifts it into the user's mock list.
+ */
 export async function POST(req: NextRequest) {
   try {
     const userId = await getUserId()

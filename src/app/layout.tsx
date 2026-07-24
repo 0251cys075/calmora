@@ -1,3 +1,10 @@
+/**
+ * @file layout.tsx
+ * @description Next.js root layout component.
+ * Configures global typography fonts, page metadata headers (SEO title/description),
+ * and mounts core wrapper providers (ErrorBoundary, ToastProvider, AuthProvider, MainLayout).
+ */
+
 import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import "./globals.css"
@@ -16,6 +23,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 })
 
+// Global SEO and app identity metadata tags configuration
 export const metadata: Metadata = {
   title: "Calmora - Find Your Calm. Find Your Power.",
   description: "AI-powered mental wellness & personal growth platform to improve mental health, build positive habits, and maintain discipline.",

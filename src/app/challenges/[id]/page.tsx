@@ -1,3 +1,11 @@
+/**
+ * @file page.tsx
+ * @description React page component rendering the detailed day-by-day task checklist for a specific challenge.
+ * Manages local progress state (storing completed day lists in localStorage),
+ * displays task categories (reflection, meditation, readings, gratitude) with appropriate icons,
+ * recalculates levels/XP counts upon task checks, and renders a Trophy card when fully completed.
+ */
+
 "use client"
 
 import { useParams } from "next/navigation"
@@ -12,6 +20,7 @@ import { ArrowLeft, Check, Clock, Trophy, Star, Target, BookOpen, Brain, Heart, 
 import { useLocalStorage } from "@/lib/hooks/useLocalStorage"
 import { useCallback } from "react"
 
+// Category-based icon indicator maps
 const typeIcons: Record<string, React.ReactNode> = {
   task: <Target className="w-4 h-4" />,
   reflection: <Brain className="w-4 h-4" />,
@@ -21,6 +30,7 @@ const typeIcons: Record<string, React.ReactNode> = {
   gratitude: <Heart className="w-4 h-4" />,
 }
 
+// Category-based border highlight color maps
 const typeColors: Record<string, string> = {
   task: "text-blue-400 bg-blue-500/20 border-blue-500/30",
   reflection: "text-purple-400 bg-purple-500/20 border-purple-500/30",
@@ -33,17 +43,24 @@ const typeColors: Record<string, string> = {
 export default function ChallengeDetailPage() {
   const params = useParams()
   const challenge = challenges.find((c) => c.id === params.id)
+  
+  // Custom LocalStorage hook loading completed days list
   const [completedDays, setCompletedDays] = useLocalStorage<number[]>(
     `calmora_challenge_progress_${params.id}`,
     []
   )
 
+  /**
+   * Helper updating user profile levels/scores in localStorage.
+   */
   const awardXp = useCallback((amount: number) => {
     try {
       const userData = JSON.parse(localStorage.getItem("calmora_user") || "{}")
       userData.xp = (userData.xp || 1200) + amount
       userData.calmScore = Math.min(1000, (userData.calmScore || 850) + Math.round(amount / 5))
       const nextLevelXp = (userData.level || 8) * 500
+      
+      // Auto-level up checking
       if (userData.xp >= nextLevelXp) {
         userData.level = (userData.level || 8) + 1
       }
@@ -128,6 +145,7 @@ export default function ChallengeDetailPage() {
                 className={`flex items-start gap-4 ${isCompleted ? "opacity-60" : ""}`}
                 hover={!isCompleted}
                 onClick={() => {
+                  // Toggle day task status checkmark
                   if (isCompleted) {
                     setCompletedDays((prev) => prev.filter((d) => d !== day.day))
                   } else {
@@ -163,6 +181,7 @@ export default function ChallengeDetailPage() {
         })}
       </div>
 
+      {/* Challenge finished trophy message */}
       {progress === 100 && (
         <GlassCard className="text-center py-8" glow>
           <div className="w-20 h-20 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-amber-500/30">

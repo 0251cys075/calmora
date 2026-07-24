@@ -1,3 +1,9 @@
+/**
+ * @file ErrorBoundary.tsx
+ * @description React Error Boundary class component that catches client-side rendering crashes.
+ * Renders an fallback UI card and prints trace component stacks in non-production environments.
+ */
+
 "use client"
 
 import { Component, ReactNode } from "react"
@@ -16,6 +22,9 @@ interface State {
   errorInfo: React.ErrorInfo | null
 }
 
+/**
+ * Class component implementing getDerivedStateFromError and componentDidCatch lifecycle APIs.
+ */
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props)
@@ -26,6 +35,9 @@ export class ErrorBoundary extends Component<Props, State> {
     }
   }
 
+  /**
+   * Updates component state so the next render shows the fallback UI.
+   */
   static getDerivedStateFromError(error: Error): State {
     return {
       hasError: true,
@@ -34,6 +46,9 @@ export class ErrorBoundary extends Component<Props, State> {
     }
   }
 
+  /**
+   * Catches errors in the child component tree and logs error stack records.
+   */
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     this.setState({
       error,
@@ -49,6 +64,9 @@ export class ErrorBoundary extends Component<Props, State> {
     // Example: Sentry.captureException(error, { contexts: { react: errorInfo } })
   }
 
+  /**
+   * Resets the error state, attempting to re-render the children tree.
+   */
   handleReset = () => {
     this.setState({
       hasError: false,
@@ -57,6 +75,9 @@ export class ErrorBoundary extends Component<Props, State> {
     })
   }
 
+  /**
+   * Clears errors and redirects the browser back to the homepage path.
+   */
   handleGoHome = () => {
     this.handleReset()
     window.location.href = "/"
@@ -83,6 +104,7 @@ export class ErrorBoundary extends Component<Props, State> {
               We encountered an unexpected error. This has been logged and our team will look into it.
             </p>
 
+            {/* Display error code details to developers when running in local development mode */}
             {process.env.NODE_ENV === "development" && this.state.error && (
               <div className="mb-6 p-4 rounded-xl bg-white/5 border border-white/10 text-left">
                 <p className="text-xs text-rose-400 font-mono mb-2">

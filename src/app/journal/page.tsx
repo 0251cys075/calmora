@@ -1,3 +1,11 @@
+/**
+ * @file page.tsx
+ * @description React page component for the AI Journal log workspace.
+ * Allows users to author daily logs with AI prompt suggestions, use quick templates
+ * for gratitude or goal settings, view automated cognitive insights,
+ * and review weekly statistics (mood averages, word frequencies).
+ */
+
 "use client"
 
 import { GlassCard } from "@/components/ui/glass-card"
@@ -15,6 +23,7 @@ import { useLocalStorage } from "@/lib/hooks/useLocalStorage"
 import { validateSchema, journalEntrySchema } from "@/lib/validation"
 import { useToast } from "@/components/providers/ToastProvider"
 
+// Prompts used for daily writing suggestions
 const prompts = [
   "What are three things you're grateful for today?",
   "Describe a moment that brought you peace today.",
@@ -35,6 +44,9 @@ export default function JournalPage() {
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
   const journalRef = useRef<HTMLTextAreaElement>(null)
 
+  /**
+   * Helper appending quick template text directly to the active text input box.
+   */
   const insertTemplate = (template: string) => {
     setJournalEntry((prev) => {
       const sep = prev && !prev.endsWith("\n") ? "\n\n" : ""
@@ -43,6 +55,7 @@ export default function JournalPage() {
     setTimeout(() => journalRef.current?.focus(), 0)
   }
 
+  // Load journal entries from the database when connected, else fall back to local storage
   useEffect(() => {
     if (!isOnline()) {
       setLoading(false)
@@ -57,6 +70,10 @@ export default function JournalPage() {
       .finally(() => setLoading(false))
   }, [])
 
+  /**
+   * Memoized stats summarizing entries length, mood averages, word frequency counts,
+   * and gratitude term counts.
+   */
   const summary = useMemo(() => {
     const totalEntries = entries.length
     const moods = entries.filter((e) => e.mood).map((e) => e.mood!)
@@ -65,6 +82,8 @@ export default function JournalPage() {
       const content = (e.title + " " + e.content).toLowerCase()
       return content.includes("grateful") || content.includes("gratitude") || content.includes("thank")
     }).length
+    
+    // Compute frequency counts on parsed words excluding common stop words
     const allWords = entries.flatMap((e) => (e.title + " " + e.content).toLowerCase().split(/\s+/))
     const stopWords = new Set(["the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "is", "was", "i", "my", "me", "we", "you", "it", "that", "this", "not", "have", "do", "be", "are", "am", "he", "she", "they", "so", "up", "out", "if", "just", "all", "now", "then", "can", "did", "get", "got", "has"])
     const wordFreq: Record<string, number> = {}
@@ -78,6 +97,10 @@ export default function JournalPage() {
     return { totalEntries, avgMood: Math.round(avgMood * 10) / 10, topTopic, gratitudeCount }
   }, [entries])
 
+  /**
+   * Validates journal entry inputs, saves record locally, awards XP,
+   * and dispatches a background task syncing it to the server database.
+   */
   const handleSave = () => {
     setValidationErrors({})
     setSaveError(null)
@@ -98,10 +121,13 @@ export default function JournalPage() {
       content,
       date: new Date().toISOString(),
     }
+    
+    // Optimistic local state update
     setEntries((prev) => [localEntry, ...prev])
     setJournalEntry("")
     setSaving(false)
 
+    // Award XP and score increments
     const userData = JSON.parse(localStorage.getItem("calmora_user") || "{}")
     const oldLevel = userData.level || 8
     userData.xp = (userData.xp || 1200) + 10
@@ -129,6 +155,9 @@ export default function JournalPage() {
       })
   }
 
+  /**
+   * Helper translating mood numeric scores into representative visual emojis.
+   */
   const getMoodEmoji = (mood?: number) => {
     if (!mood) return ""
     if (mood >= 4) return "😊"
@@ -276,7 +305,7 @@ export default function JournalPage() {
                     className="p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 cursor-pointer transition-all"
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-white/40">
+                       <span className="text-xs text-white/40">
                         {new Date(entry.date).toLocaleDateString()}
                       </span>
                       <span>{getMoodEmoji(entry.mood)}</span>

@@ -1,3 +1,10 @@
+/**
+ * @file avatar.tsx
+ * @description Reusable Avatar UI helper component.
+ * Renders user avatar pictures using a circle cropping frame, or falls back to
+ * calculating initials based on user names against a blue/cyan gradient background.
+ */
+
 "use client"
 
 import { cn } from "@/lib/utils"
@@ -10,6 +17,7 @@ interface AvatarProps {
 }
 
 export function Avatar({ src, name, size = "md", className }: AvatarProps) {
+  // Resolve initials from full user names (max 2 characters, defaults to "?")
   const initials = name
     ? name
         .split(" ")
@@ -26,6 +34,7 @@ export function Avatar({ src, name, size = "md", className }: AvatarProps) {
     xl: "w-20 h-20 text-2xl",
   }
 
+  // Image-based avatar rendering
   if (src) {
     return (
       <div className={cn("relative flex-shrink-0", className)}>
@@ -39,6 +48,7 @@ export function Avatar({ src, name, size = "md", className }: AvatarProps) {
     )
   }
 
+  // Initials-based avatar fallback rendering
   return (
     <div
       className={cn(

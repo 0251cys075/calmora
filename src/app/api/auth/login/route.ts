@@ -1,3 +1,9 @@
+/**
+ * @file route.ts
+ * @description Next.js API route handler for local email/password login authentication.
+ * Signs JWT tokens and returns persistent secure HttpOnly session cookies.
+ */
+
 import { NextRequest, NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import bcrypt from "bcryptjs"
@@ -5,14 +11,18 @@ import jwt from "jsonwebtoken"
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
 
-// In production, use a real database
+// Mock user store fallback if not running against the live database
 const users: Record<string, { name: string; email: string; password: string; id: string }> = {}
 
+/**
+ * @route POST /api/auth/login
+ * @desc Authenticates email credentials and sets the session cookie.
+ */
 export async function POST(req: NextRequest) {
   try {
     const { email, password } = await req.json()
 
-    // Validation
+    // Form schema validation checks
     if (!email?.includes("@") || !password?.length) {
       return NextResponse.json(
         { error: "Invalid email or password." },
@@ -22,7 +32,7 @@ export async function POST(req: NextRequest) {
 
     const normalizedEmail = email.toLowerCase()
 
-    // Check if user exists
+    // Search profile in local memory list
     const user = users[normalizedEmail]
     if (!user) {
       return NextResponse.json(
@@ -31,7 +41,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Verify password
+    // Verify salted password hashes match
     const isValidPassword = await bcrypt.compare(password, user.password)
     if (!isValidPassword) {
       return NextResponse.json(
@@ -40,14 +50,14 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Generate JWT token
+    // Sign session token with 7 days expiration duration
     const token = jwt.sign(
       { userId: user.id, email: user.email, name: user.name },
       JWT_SECRET,
       { expiresIn: "7d" }
     )
 
-    // Set HTTP-only cookie
+    // Store JWT securely as an HTTP-only browser cookie
     const cookieStore = await cookies()
     cookieStore.set("calmora_token", token, {
       httpOnly: true,
@@ -57,7 +67,7 @@ export async function POST(req: NextRequest) {
       path: "/",
     })
 
-    // Return user data (without password)
+    // Profile details projection (excluding secure password fields)
     const userData = {
       id: user.id,
       name: user.name,

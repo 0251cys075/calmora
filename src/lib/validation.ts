@@ -1,6 +1,19 @@
+/**
+ * @file validation.ts
+ * @description Zod-based request validation schemas and helper types for the Calmora client and API.
+ * Ensures consistent checking of login, registration, journals, habits, mood logs, and AI companion messages.
+ */
+
 import { z } from "zod"
 
-// Auth validation schemas
+/* ==========================================================================
+   AUTHENTICATION VALIDATION SCHEMAS
+   ========================================================================== */
+
+/**
+ * Validation schema for new user registrations.
+ * Requires name, valid email, and secure password.
+ */
 export const registerSchema = z.object({
   name: z.string()
     .min(2, "Name must be at least 2 characters")
@@ -17,6 +30,9 @@ export const registerSchema = z.object({
     .regex(/[0-9]/, "Password must contain at least one number"),
 })
 
+/**
+ * Validation schema for user login requests.
+ */
 export const loginSchema = z.object({
   email: z.string()
     .email("Please enter a valid email address")
@@ -26,7 +42,13 @@ export const loginSchema = z.object({
     .min(1, "Password is required"),
 })
 
-// Journal validation schemas
+/* ==========================================================================
+   JOURNAL VALIDATION SCHEMAS
+   ========================================================================== */
+
+/**
+ * Validation schema for journal entries.
+ */
 export const journalEntrySchema = z.object({
   content: z.string()
     .min(10, "Journal entry must be at least 10 characters")
@@ -43,7 +65,13 @@ export const journalEntrySchema = z.object({
   isGratitude: z.boolean().optional(),
 })
 
-// Habit validation schemas
+/* ==========================================================================
+   HABIT VALIDATION SCHEMAS
+   ========================================================================== */
+
+/**
+ * Validation schema for habits configuration.
+ */
 export const habitSchema = z.object({
   name: z.string()
     .min(2, "Habit name must be at least 2 characters")
@@ -54,7 +82,13 @@ export const habitSchema = z.object({
   time: z.string().optional(),
 })
 
-// Mood validation schemas
+/* ==========================================================================
+   MOOD VALIDATION SCHEMAS
+   ========================================================================== */
+
+/**
+ * Validation schema for mood tracking logs.
+ */
 export const moodEntrySchema = z.object({
   mood: z.number()
     .min(1, "Mood must be between 1 and 5")
@@ -65,7 +99,13 @@ export const moodEntrySchema = z.object({
   tags: z.array(z.string().max(30)).max(5).optional(),
 })
 
-// Chat validation schemas
+/* ==========================================================================
+   CHAT VALIDATION SCHEMAS
+   ========================================================================== */
+
+/**
+ * Validation schema for messages sent to the Calmora AI wellness companion.
+ */
 export const chatMessageSchema = z.object({
   message: z.string()
     .min(1, "Message cannot be empty")
@@ -74,7 +114,10 @@ export const chatMessageSchema = z.object({
   mode: z.enum(["listener", "coach", "motivation", "cbt", "meditation", "productivity", "student"]).optional(),
 })
 
-// Type exports
+/* ==========================================================================
+   SCHEMA TYPE INFERENCES
+   ========================================================================== */
+
 export type RegisterInput = z.infer<typeof registerSchema>
 export type LoginInput = z.infer<typeof loginSchema>
 export type JournalEntryInput = z.infer<typeof journalEntrySchema>
@@ -82,7 +125,17 @@ export type HabitInput = z.infer<typeof habitSchema>
 export type MoodEntryInput = z.infer<typeof moodEntrySchema>
 export type ChatMessageInput = z.infer<typeof chatMessageSchema>
 
-// Validation helper function
+/* ==========================================================================
+   VALIDATION ENGINE HELPER
+   ========================================================================== */
+
+/**
+ * Generic helper to validate data objects against any Zod schema.
+ * Formats errors nicely mapping each error to its corresponding object key path.
+ * @param schema - ZodSchema target
+ * @param data - The raw input data to validate
+ * @returns Success status and parsed data or success failure status and errors mapping
+ */
 export function validateSchema<T>(schema: z.ZodSchema<T>, data: unknown): { success: true; data: T } | { success: false; errors: Record<string, string> } {
   try {
     const validatedData = schema.parse(data)

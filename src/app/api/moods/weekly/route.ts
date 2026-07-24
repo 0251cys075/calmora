@@ -1,12 +1,21 @@
+/**
+ * @file route.ts
+ * @description Next.js API route handler to get user mood logs aggregated by day of the week.
+ * Resolves user from JWT session cookie and averages logged scores per day.
+ */
+
 import { NextRequest, NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import jwt from "jsonwebtoken"
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
 
-// In production, use a real database
+// Mock mood logs storage grouped by userId keys
 let moodEntries: Record<string, any[]> = {}
 
+/**
+ * Extracts and decodes userId from the local HTTP-only session cookie.
+ */
 async function getUserId(): Promise<string | null> {
   try {
     const cookieStore = await cookies()
@@ -20,6 +29,10 @@ async function getUserId(): Promise<string | null> {
   }
 }
 
+/**
+ * @route GET /api/moods/weekly
+ * @desc Retrieves user's mood log stats for each day of the current calendar week.
+ */
 export async function GET(req: NextRequest) {
   try {
     const userId = await getUserId()
@@ -29,7 +42,7 @@ export async function GET(req: NextRequest) {
 
     const userMoods = moodEntries[userId] || []
 
-    // Get last 7 days of mood data
+    // Get last 7 days of mood data mapped to weekdays
     const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
     const weeklyData = days.map((day, index) => {
       const date = new Date()

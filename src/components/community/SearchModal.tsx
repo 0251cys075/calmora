@@ -1,3 +1,10 @@
+/**
+ * @file SearchModal.tsx
+ * @description React component rendering a modal backdrop search overlay.
+ * Features debounced search inputs, loading indicators, static trending categories, 
+ * matching users/posts list rendering, and dropdown suggestions for "@" or "#" symbol filters.
+ */
+
 "use client"
 
 import { motion, AnimatePresence } from "framer-motion"
@@ -15,12 +22,15 @@ interface SearchModalProps {
 
 export function SearchModal({ open, onClose }: SearchModalProps) {
   const router = useRouter()
+  
+  // UI and autocomplete suggestions states
   const [query, setQuery] = useState("")
   const [results, setResults] = useState<{ users?: UserProfile[]; posts?: PostData[] }>({})
   const [suggestions, setSuggestions] = useState<{ users: UserProfile[]; hashtags: { tag: string; count: number }[] }>({ users: [], hashtags: [] })
   const [searching, setSearching] = useState(false)
   const debounceRef = useRef<number>(undefined)
 
+  // Debounce effect: triggers lookups 300ms after the user stops typing
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = window.setTimeout(async () => {
@@ -30,6 +40,7 @@ export function SearchModal({ open, onClose }: SearchModalProps) {
         return
       }
       
+      // Determine if searching specifically for a username prefix (@) or tag prefix (#)
       if (query.startsWith("#") || query.startsWith("@")) {
         setSearching(true)
         try {
@@ -52,14 +63,22 @@ export function SearchModal({ open, onClose }: SearchModalProps) {
         }
       }
     }, 300)
+    
+    // Clear timer upon unmount
     return () => clearTimeout(debounceRef.current)
   }, [query])
 
+  /**
+   * Redirects browser to user profile view and closes search overlay.
+   */
   const handleUserClick = (username: string) => {
     router.push(`/profile/${username}`)
     onClose()
   }
 
+  /**
+   * Modifies search query text prefixing with a hashtag indicator.
+   */
   const handleHashtagClick = (tag: string) => {
     setQuery(`#${tag}`)
   }

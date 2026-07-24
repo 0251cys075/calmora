@@ -1,3 +1,10 @@
+/**
+ * @file admin.js
+ * @description Express routes handling administrative tasks including managing reported content,
+ * moderating flagged posts, toggling user roles/permissions, banning users, and fetching platform stats.
+ * Secured by adminAuth middleware.
+ */
+
 const express = require("express")
 const router = express.Router()
 const Report = require("../models/Report")
@@ -6,6 +13,11 @@ const Comment = require("../models/Comment")
 const User = require("../models/User")
 const { adminAuth } = require("../middleware/auth")
 
+/**
+ * @route GET /api/admin/reports
+ * @desc Retrieves paginated moderation reports filtered by status.
+ * Dynamically resolves and populates target data based on targetType (post, comment, user).
+ */
 router.get("/reports", adminAuth, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1
@@ -22,6 +34,7 @@ router.get("/reports", adminAuth, async (req, res) => {
 
     const total = await Report.countDocuments({ status })
 
+    // Populate data depending on what type of model was flagged
     for (const report of reports) {
       if (report.targetType === "post") {
         report.targetData = await Post.findById(report.target)
@@ -35,6 +48,7 @@ router.get("/reports", adminAuth, async (req, res) => {
       }
     }
 
+    // Compile summary counts of tickets across all statuses
     const counts = {
       pending: await Report.countDocuments({ status: "pending" }),
       reviewed: await Report.countDocuments({ status: "reviewed" }),
@@ -53,6 +67,10 @@ router.get("/reports", adminAuth, async (req, res) => {
   }
 })
 
+/**
+ * @route PATCH /api/admin/reports/:id
+ * @desc Updates status of a report ticket. Applies moderation actions (deleting post, banning user).
+ */
 router.patch("/reports/:id", adminAuth, async (req, res) => {
   try {
     const { status, action } = req.body
@@ -65,6 +83,7 @@ router.patch("/reports/:id", adminAuth, async (req, res) => {
     if (action) report.action = action
     await report.save()
 
+    // Apply strict moderation values if action is taken
     if (status === "action_taken") {
       if (report.targetType === "post") {
         await Post.findByIdAndUpdate(report.target, {
@@ -85,6 +104,10 @@ router.patch("/reports/:id", adminAuth, async (req, res) => {
   }
 })
 
+/**
+ * @route GET /api/admin/flagged-posts
+ * @desc Retrieves paginated posts flagged automatically by text scans.
+ */
 router.get("/flagged-posts", adminAuth, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1
@@ -114,6 +137,10 @@ router.get("/flagged-posts", adminAuth, async (req, res) => {
   }
 })
 
+/**
+ * @route PATCH /api/admin/posts/:id/moderate
+ * @desc Allows moderators to manually override post flags (approving or removing a post).
+ */
 router.patch("/posts/:id/moderate", adminAuth, async (req, res) => {
   try {
     const { action } = req.body
@@ -137,6 +164,10 @@ router.patch("/posts/:id/moderate", adminAuth, async (req, res) => {
   }
 })
 
+/**
+ * @route GET /api/admin/users
+ * @desc Retrieves a paginated list of all users registered on the platform.
+ */
 router.get("/users", adminAuth, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1
@@ -159,6 +190,10 @@ router.get("/users", adminAuth, async (req, res) => {
   }
 })
 
+/**
+ * @route PATCH /api/admin/users/:id
+ * @desc Modifies roles and permission values (admin, moderator, verified badge, ban status) for a user.
+ */
 router.patch("/users/:id", adminAuth, async (req, res) => {
   try {
     const { isBanned, banReason, isAdmin, isModerator, isVerified } = req.body
@@ -176,6 +211,10 @@ router.patch("/users/:id", adminAuth, async (req, res) => {
   }
 })
 
+/**
+ * @route GET /api/admin/stats
+ * @desc Compiles global metrics summary across users, posts, comments, and pending flags.
+ */
 router.get("/stats", adminAuth, async (req, res) => {
   try {
     const [userCount, postCount, commentCount, reportCount, flaggedCount] = await Promise.all([

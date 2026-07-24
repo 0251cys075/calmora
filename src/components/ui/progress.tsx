@@ -1,3 +1,10 @@
+/**
+ * @file progress.tsx
+ * @description Reusable Progress bar component.
+ * Features animated width loading bars (using Framer Motion), multiple sizes (sm, md, lg),
+ * status labels with percentage computations, and multiple color gradients.
+ */
+
 "use client"
 
 import { cn } from "@/lib/utils"
@@ -22,6 +29,7 @@ export function Progress({
   label,
   className,
 }: ProgressProps) {
+  // Safe percentage calculation bounded between 0% and 100%
   const percentage = Math.min((value / max) * 100, 100)
 
   return (
@@ -34,6 +42,7 @@ export function Progress({
       )}
       <div
         className={cn("w-full rounded-full bg-white/10 overflow-hidden", {
+          // Height constraints
           "h-1.5": size === "sm",
           "h-2.5": size === "md",
           "h-4": size === "lg",
@@ -44,6 +53,7 @@ export function Progress({
           animate={{ width: `${percentage}%` }}
           transition={{ duration: 1, ease: "easeOut" }}
           className={cn("h-full rounded-full", {
+            // Color theme presets
             "bg-gradient-to-r from-blue-500 to-cyan-500": variant === "gradient",
             "bg-white/30": variant === "default",
             "bg-gradient-to-r from-emerald-500 to-teal-500": variant === "success",

@@ -1,3 +1,9 @@
+/**
+ * @file ConfettiCelebration.tsx
+ * @description React component rendering a confetti particle animation when streak milestones are achieved.
+ * Monitors login streak boundaries (e.g. multiples of 7) to trigger dynamic celebration overlays.
+ */
+
 "use client"
 
 import { useEffect, useState, useMemo } from "react"
@@ -17,8 +23,12 @@ interface Particle {
   rotation: number
 }
 
+// Assorted vibrant colors for particles
 const COLORS = ["#3b82f6", "#06b6d4", "#8b5cf6", "#f59e0b", "#10b981", "#ec4899", "#f97316"]
 
+/**
+ * Checks if a milestone (multiple of 7 days) was completed in this transition.
+ */
 function checkMilestoneTriggered(prevStreak: number, currentStreak: number): boolean {
   if (prevStreak === currentStreak) return false
   return currentStreak > 0 && currentStreak % 7 === 0
@@ -28,6 +38,7 @@ export function ConfettiCelebration({ streak: currentStreak, habits }: ConfettiC
   const [show, setShow] = useState(false)
   const [prevStreak, setPrevStreak] = useState(currentStreak)
 
+  // Trigger effect when currentStreak updates to detect milestone triggers
   useEffect(() => {
     if (checkMilestoneTriggered(prevStreak, currentStreak)) {
       setShow(true)
@@ -37,6 +48,7 @@ export function ConfettiCelebration({ streak: currentStreak, habits }: ConfettiC
     setPrevStreak(currentStreak)
   }, [currentStreak, prevStreak])
 
+  // Compute randomised floating particles parameters
   const particles = useMemo(() => {
     if (!show) return []
     const items: Particle[] = []

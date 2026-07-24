@@ -1,3 +1,10 @@
+/**
+ * @file Leaderboard.tsx
+ * @description React component rendering user rankings on the platform.
+ * Displays top users sorted by active XP, community reputation points, or daily login streak numbers.
+ * Supports compact rendering (e.g. for sidebar integrations) or expanded list feeds.
+ */
+
 "use client"
 
 import { GlassCard } from "@/components/ui/glass-card"
@@ -16,14 +23,20 @@ interface LeaderboardProps {
 
 export function Leaderboard({ compact }: LeaderboardProps) {
   const router = useRouter()
+  
+  // UI states
   const [users, setUsers] = useState<UserProfile[]>([])
   const [type, setType] = useState<"xp" | "reputation" | "streak">("xp")
   const [loading, setLoading] = useState(true)
 
+  // Reload lists when ranking toggle category type transitions
   useEffect(() => {
     loadLeaderboard()
   }, [type])
 
+  /**
+   * Loads rankings list using community api wrapper.
+   */
   const loadLeaderboard = async () => {
     setLoading(true)
     try {
@@ -33,6 +46,9 @@ export function Leaderboard({ compact }: LeaderboardProps) {
     setLoading(false)
   }
 
+  /**
+   * Resolves special ranking icons for top 3 champions.
+   */
   const getRankIcon = (i: number) => {
     if (i === 0) return <Crown className="w-4 h-4 text-amber-400" />
     if (i === 1) return <Medal className="w-4 h-4 text-slate-300" />
@@ -40,6 +56,9 @@ export function Leaderboard({ compact }: LeaderboardProps) {
     return null
   }
 
+  /**
+   * Resolves row highlight style classes matching medal rankings.
+   */
   const getRankStyle = (i: number) => {
     if (i === 0) return "bg-amber-500/10 border-amber-500/20"
     if (i === 1) return "bg-white/5 border-white/10"

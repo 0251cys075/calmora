@@ -1,3 +1,10 @@
+/**
+ * @file LandingPage.tsx
+ * @description React component rendering the promotional public landing page of Calmora.
+ * Highlights core value propositions (AI Companion, journaling, habit checklists, mindfulness),
+ * showcases system statistics, explains user onboarding steps, and enables guest login triggers.
+ */
+
 "use client"
 
 import { motion } from "framer-motion"
@@ -13,6 +20,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/hooks/useAuth"
 
+// Framer motion list container animation variants
 const container = {
   hidden: { opacity: 0 },
   show: {
@@ -21,6 +29,7 @@ const container = {
   },
 }
 
+// Framer motion list child item animation variants
 const item = {
   hidden: { opacity: 0, y: 20 },
   show: { opacity: 1, y: 0 },
@@ -30,6 +39,9 @@ export function LandingPage() {
   const router = useRouter()
   const { guestLogin } = useAuth()
 
+  /**
+   * Generates a temporary guest token to log into the dashboard.
+   */
   const handleGuestLogin = async () => {
     await guestLogin()
     router.push("/")

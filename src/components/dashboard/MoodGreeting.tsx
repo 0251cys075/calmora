@@ -1,3 +1,10 @@
+/**
+ * @file MoodGreeting.tsx
+ * @description React component rendering a contextual dashboard greeting header.
+ * Adjusts welcome wording based on time of day (morning/afternoon/evening) and customizes
+ * subtitles based on the user's latest logged daily mood value.
+ */
+
 "use client"
 
 import { useMemo } from "react"
@@ -8,6 +15,9 @@ interface MoodGreetingProps {
   moodEntries: { mood: number; date: string }[]
 }
 
+/**
+ * Returns dynamic greetings matching standard time windows.
+ */
 function getTimeBasedGreeting(): string {
   const hour = new Date().getHours()
   if (hour < 12) return "Good morning"
@@ -15,6 +25,9 @@ function getTimeBasedGreeting(): string {
   return "Good evening"
 }
 
+/**
+ * Returns customized supportive subtitles and emojis aligned with mood scores.
+ */
 function getMoodMessage(mood: number | null): { emoji: string; subtitle: string } {
   if (mood === null) {
     return { emoji: "👋", subtitle: "Ready to check in with yourself today?" }
@@ -32,6 +45,7 @@ function getMoodMessage(mood: number | null): { emoji: string; subtitle: string 
 }
 
 export function MoodGreeting({ name, moodEntries }: MoodGreetingProps) {
+  // Compute contextual messages based on the newest logged mood record
   const { emoji, subtitle } = useMemo(() => {
     const sorted = [...moodEntries].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     const latestMood = sorted.length > 0 ? sorted[0].mood : null
@@ -50,6 +64,7 @@ export function MoodGreeting({ name, moodEntries }: MoodGreetingProps) {
   )
 }
 
+// Framer motion item transition variants
 const item = {
   hidden: { opacity: 0, y: 20 },
   show: { opacity: 1, y: 0 },

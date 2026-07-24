@@ -1,3 +1,11 @@
+/**
+ * @file page.tsx
+ * @description React page component for the Emergency Calm helper page.
+ * Offers breathing guidance timers, an interactive 5-4-3-2-1 grounding exercise
+ * with step trackers, and a list of emergency hotlines/SMS numbers for users experiencing
+ * immediate distress.
+ */
+
 "use client"
 
 import { GlassCard } from "@/components/ui/glass-card"
@@ -12,12 +20,14 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 
+// Box breathing steps configuration
 const breathingSteps = [
   { text: "Breathe In", duration: 4000, color: "from-blue-500 to-cyan-500" },
   { text: "Hold", duration: 4000, color: "from-cyan-500 to-teal-500" },
   { text: "Breathe Out", duration: 6000, color: "from-teal-500 to-emerald-500" },
 ]
 
+// Grounding checklist guidelines
 const groundingExercise = [
   "Look around and name 5 things you can see",
   "Name 4 things you can feel right now",
@@ -26,6 +36,7 @@ const groundingExercise = [
   "Name 1 thing you can taste",
 ]
 
+// Professional emergency contacts
 const emergencyResources = [
   { name: "National Crisis Hotline", number: "988", description: "24/7 support for mental health crises" },
   { name: "Crisis Text Line", number: "741741", description: "Text HOME to connect with a crisis counselor" },
@@ -40,6 +51,7 @@ export default function EmergencyPage() {
   const [groundingStep, setGroundingStep] = useState(0)
   const breathInterval = useRef<NodeJS.Timeout | null>(null)
 
+  // Manage breathing phase sequence timers
   useEffect(() => {
     if (!isBreathing) {
       if (breathInterval.current) {
@@ -115,6 +127,7 @@ export default function EmergencyPage() {
         })}
       </motion.div>
 
+      {/* Guided Breathing Subview */}
       {activeTab === "breathing" && (
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
@@ -125,6 +138,7 @@ export default function EmergencyPage() {
             <div className="absolute inset-0 bg-gradient-to-br from-rose-500/5 to-red-500/5" />
             <div className="relative z-10">
               <div className="w-56 h-56 mx-auto relative mb-8">
+                {/* Expansive animated scale border ring */}
                 <div className={`absolute inset-0 rounded-full transition-all duration-1000 ${
                   isBreathing
                     ? currentStep?.text === "Breathe In"
@@ -170,6 +184,7 @@ export default function EmergencyPage() {
         </motion.div>
       )}
 
+      {/* 5-4-3-2-1 Grounding Subview */}
       {activeTab === "grounding" && (
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
@@ -238,6 +253,7 @@ export default function EmergencyPage() {
         </motion.div>
       )}
 
+      {/* Hotline Support Directory Subview */}
       {activeTab === "resources" && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}

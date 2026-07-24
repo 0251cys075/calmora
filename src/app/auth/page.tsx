@@ -1,3 +1,11 @@
+/**
+ * @file page.tsx
+ * @description React page component for the Auth Portal (Login / Registration).
+ * Integrates credential checks with client-side Joi-style validation helpers,
+ * manages password eye toggles, displays global auth errors, and coordinates mock
+ * third-party integrations (Google Login, Guest Login bypass).
+ */
+
 "use client"
 
 import { GlassCard } from "@/components/ui/glass-card"
@@ -12,6 +20,8 @@ import { validateSchema, registerSchema, loginSchema } from "@/lib/validation"
 export default function AuthPage() {
   const router = useRouter()
   const { error, login, register, loginWithGoogle, guestLogin, clearError, isAuthenticated } = useAuth()
+  
+  // Form input field configurations and visibility toggles
   const [isLogin, setIsLogin] = useState(true)
   const [showPassword, setShowPassword] = useState(false)
   const [name, setName] = useState("")
@@ -20,12 +30,16 @@ export default function AuthPage() {
   const [submitting, setSubmitting] = useState(false)
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
 
+  // Automatically forward authenticated users away from auth routes
   useEffect(() => {
     if (isAuthenticated) {
       router.replace("/")
     }
   }, [isAuthenticated, router])
 
+  /**
+   * Dispatches validation checks and submits login or registration forms.
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     clearError()
@@ -38,6 +52,7 @@ export default function AuthPage() {
     const schema = isLogin ? loginSchema : registerSchema
     const validation = validateSchema(schema, data)
 
+    // Stop execution and render validation feedback if validation schema fails
     if (!validation.success) {
       setValidationErrors(validation.errors)
       return
@@ -56,6 +71,9 @@ export default function AuthPage() {
     }
   }
 
+  /**
+   * Triggers mock Google Sign In flow and forwards session.
+   */
   const handleGoogleLogin = async () => {
     setSubmitting(true)
     clearError()
@@ -66,6 +84,9 @@ export default function AuthPage() {
     }
   }
 
+  /**
+   * Triggers mock Instant Guest Sign In flow and forwards session.
+   */
   const handleGuestAccess = async () => {
     setSubmitting(true)
     clearError()

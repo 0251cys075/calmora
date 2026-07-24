@@ -1,3 +1,10 @@
+/**
+ * @file page.tsx
+ * @description React page component for direct messaging.
+ * Renders conversation sidebars containing unread counters, chat details,
+ * and text bubbles. Handles enter submission bindings and auto-scrolling focus offsets.
+ */
+
 "use client"
 
 import { GlassCard } from "@/components/ui/glass-card"
@@ -24,16 +31,21 @@ export default function MessagesPage() {
 
   useEffect(() => { loadConversations() }, [])
 
+  // Refetch message histories when changing active conversations
   useEffect(() => {
     if (activeUserId) {
       communityApi.getMessages(activeUserId).then((res) => setMessages(res.messages)).catch(() => {})
     }
   }, [activeUserId])
 
+  // Scroll to bottom of message lists on updates
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
+  /**
+   * Loads recent chat threads from server.
+   */
   const loadConversations = async () => {
     try {
       const res = await communityApi.getConversations()
@@ -41,6 +53,9 @@ export default function MessagesPage() {
     } catch {} finally { setLoading(false) }
   }
 
+  /**
+   * Submits a message to the active conversation user and updates state.
+   */
   const handleSend = useCallback(async () => {
     if (!newMessage.trim() || !activeUserId) return
     setSending(true)
@@ -69,7 +84,7 @@ export default function MessagesPage() {
           </div>
 
           <div className="flex flex-1 overflow-hidden">
-            {/* Conversations list */}
+            {/* Conversations sidebar list */}
             <div className="w-72 border-r border-white/10 overflow-y-auto flex-shrink-0">
               {conversations.length === 0 ? (
                 <div className="text-center py-12 text-white/30 text-sm px-4">No conversations yet</div>
@@ -97,7 +112,7 @@ export default function MessagesPage() {
               )}
             </div>
 
-            {/* Messages area */}
+            {/* Conversation active viewpane */}
             {activeUser ? (
               <div className="flex-1 flex flex-col">
                 <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-white/5">

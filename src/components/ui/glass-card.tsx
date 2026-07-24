@@ -1,3 +1,10 @@
+/**
+ * @file glass-card.tsx
+ * @description Reusable GlassCard and skeleton layout containers.
+ * Implements premium glassmorphism styling tokens (backdrop blur, semi-transparent overlays)
+ * with animated hover translation and customizable shadow glows.
+ */
+
 "use client"
 
 import { cn } from "@/lib/utils"
@@ -31,6 +38,9 @@ export function GlassCard({ children, className, hover = true, glow = false, onC
   )
 }
 
+/**
+ * Placeholder loading skeleton for GlassCard structures.
+ */
 export function GlassCardSkeleton({ className }: { className?: string }) {
   return (
     <div className={cn("rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-6 animate-pulse", className)}>

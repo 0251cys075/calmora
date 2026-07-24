@@ -1,5 +1,12 @@
+/**
+ * @file route.ts
+ * @description Next.js API route handler for mock community feed posts.
+ * Serves static sample posts with pagination and tagging filter support.
+ */
+
 import { NextRequest, NextResponse } from "next/server"
 
+// Static mock posts to display in the community feed for testing purposes
 const sampleFeedPosts = [
   {
     _id: "post_sample_1",
@@ -67,6 +74,10 @@ const sampleFeedPosts = [
   },
 ]
 
+/**
+ * @route GET /api/posts/feed
+ * @desc Retrieves a paginated list of feed posts, optionally filtered by tag.
+ */
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
@@ -75,6 +86,8 @@ export async function GET(req: NextRequest) {
     const tag = searchParams.get("tag")
 
     let posts = sampleFeedPosts
+    
+    // Filter posts if tag search parameter is specified
     if (tag) {
       posts = posts.filter(p => p.tags.includes(tag) || p.hashtags.includes(tag.toLowerCase()))
     }

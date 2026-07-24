@@ -1,3 +1,10 @@
+/**
+ * @file button.tsx
+ * @description Reusable Button UI component.
+ * Integrates Framer Motion tap/hover states, offers multiple color configurations
+ * (primary, secondary, ghost, danger, glass), supports loading spinners, and embeds inline icons.
+ */
+
 "use client"
 
 import { cn } from "@/lib/utils"
@@ -24,6 +31,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50",
           "disabled:opacity-50 disabled:cursor-not-allowed",
           {
+            // Variant color classes
             "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40":
               variant === "primary",
             "bg-white/10 text-white border border-white/10 hover:bg-white/20": variant === "secondary",
@@ -32,6 +40,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
             "bg-white/5 backdrop-blur-xl border border-white/10 text-white hover:bg-white/10": variant === "glass",
           },
           {
+            // Sizing configurations
             "px-3 py-1.5 text-sm": size === "sm",
             "px-5 py-2.5 text-sm": size === "md",
             "px-7 py-3.5 text-base": size === "lg",
@@ -40,6 +49,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         )}
         {...props}
       >
+        {/* Loading Spinner */}
         {loading ? (
           <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
