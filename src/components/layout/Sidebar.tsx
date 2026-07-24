@@ -23,14 +23,12 @@ import {
   Users,
   Music,
   GraduationCap,
-  Shield,
   AlertTriangle,
   Camera,
   Menu,
   X,
   Sparkles,
   LogOut,
-  MessageSquare,
 } from "lucide-react"
 import { useState } from "react"
 import { useAuth } from "@/lib/hooks/useAuth"
@@ -45,10 +43,8 @@ const navItems = [
   { href: "/learn", label: "Learn Hub", icon: Sparkles, color: "text-indigo-400" },
   { href: "/reports", label: "Reports", icon: FileText, color: "text-rose-400" },
   { href: "/community", label: "Community", icon: Users, color: "text-pink-400" },
-  { href: "/messages", label: "Messages", icon: MessageSquare, color: "text-cyan-400" },
   { href: "/relax", label: "Relax Zone", icon: Music, color: "text-teal-400" },
   { href: "/student", label: "Student", icon: GraduationCap, color: "text-sky-400" },
-  { href: "/safe-circle", label: "Safe Circle", icon: Shield, color: "text-teal-400" },
   { href: "/emergency", label: "Emergency", icon: AlertTriangle, color: "text-red-400" },
   { href: "/mood-scanner", label: "Mood Scanner", icon: Camera, color: "text-emerald-400" },
 ]

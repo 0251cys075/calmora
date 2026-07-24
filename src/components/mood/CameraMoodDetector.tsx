@@ -2,12 +2,12 @@
 
 import { useState, useRef, useCallback, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Camera, CameraOff, Scan, CheckCircle2, AlertTriangle, RefreshCw, Loader2 } from "lucide-react"
+import { Camera, CameraOff, Scan, CheckCircle2, AlertTriangle, RefreshCw, Loader2, Lock, ArrowLeft } from "lucide-react"
 import { GlassCard } from "@/components/ui/glass-card"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-type DetectionState = "idle" | "permission-prompt" | "initializing" | "scanning" | "detected" | "error"
+type DetectionState = "idle" | "permission-prompt" | "initializing" | "scanning" | "detected" | "success" | "error"
 
 interface ExpressionResult {
   expression: string
@@ -37,14 +37,16 @@ const EXPRESSION_LABELS: Record<string, string> = {
 interface CameraMoodDetectorProps {
   onMoodDetected: (moodId: string) => void
   disabled?: boolean
+  onFallbackToManual?: () => void
 }
 
-export function CameraMoodDetector({ onMoodDetected, disabled }: CameraMoodDetectorProps) {
+export function CameraMoodDetector({ onMoodDetected, disabled, onFallbackToManual }: CameraMoodDetectorProps) {
   const [state, setState] = useState<DetectionState>("idle")
   const [errorMsg, setErrorMsg] = useState("")
   const [detectedExpressions, setDetectedExpressions] = useState<ExpressionResult[]>([])
   const [bestMood, setBestMood] = useState<string | null>(null)
   const [scanProgress, setScanProgress] = useState(0)
+  const [showGuide, setShowGuide] = useState(false)
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -53,8 +55,8 @@ export function CameraMoodDetector({ onMoodDetected, disabled }: CameraMoodDetec
   const scanFramesRef = useRef(0)
   const faceapiRef = useRef<typeof import("face-api.js") | null>(null)
 
-  const scanDuration = 2000
-  const totalFrames = 10
+  const scanDuration = 2500
+  const totalFrames = 12
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -75,12 +77,11 @@ export function CameraMoodDetector({ onMoodDetected, disabled }: CameraMoodDetec
     accumulatedRef.current = {}
     scanFramesRef.current = 0
     setScanProgress(0)
+    setShowGuide(false)
   }, [stopCamera])
 
   useEffect(() => {
-    return () => {
-      cleanup()
-    }
+    return () => { cleanup() }
   }, [cleanup])
 
   const loadModels = useCallback(async () => {
@@ -97,7 +98,7 @@ export function CameraMoodDetector({ onMoodDetected, disabled }: CameraMoodDetec
   const startCamera = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: { ideal: 320 }, height: { ideal: 240 } },
+        video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
         audio: false,
       })
       streamRef.current = stream
@@ -114,10 +115,9 @@ export function CameraMoodDetector({ onMoodDetected, disabled }: CameraMoodDetec
     const faceapi = faceapiRef.current
     if (!faceapi || !videoRef.current) return null
     try {
-      const detections = await faceapi
+      return await faceapi
         .detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions({ inputSize: 224 }))
         .withFaceExpressions()
-      return detections
     } catch {
       return null
     }
@@ -130,6 +130,7 @@ export function CameraMoodDetector({ onMoodDetected, disabled }: CameraMoodDetec
       if (!accumulatedRef.current[expression]) accumulatedRef.current[expression] = []
       accumulatedRef.current[expression].push(probability)
     }
+    if (arr.length > 0) setShowGuide(false)
   }, [])
 
   const computeBestMood = useCallback(() => {
@@ -140,12 +141,8 @@ export function CameraMoodDetector({ onMoodDetected, disabled }: CameraMoodDetec
       }
     }
     const sorted = Object.entries(averages).sort((a, b) => b[1] - a[1])
-    const results: ExpressionResult[] = sorted.map(([expression, probability]) => ({
-      expression,
-      probability,
-    }))
+    const results: ExpressionResult[] = sorted.map(([expression, probability]) => ({ expression, probability }))
     setDetectedExpressions(results)
-
     if (results.length > 0) {
       const top = results[0]
       const mapped = EXPRESSION_MOOD_MAP[top.expression]
@@ -165,6 +162,7 @@ export function CameraMoodDetector({ onMoodDetected, disabled }: CameraMoodDetec
     try {
       await loadModels()
       await startCamera()
+      setShowGuide(true)
       setState("scanning")
 
       const intervalTime = scanDuration / totalFrames
@@ -184,13 +182,15 @@ export function CameraMoodDetector({ onMoodDetected, disabled }: CameraMoodDetec
           }
           computeBestMood()
           stopCamera()
-          setState("detected")
+          setState("success")
+          setTimeout(() => setState("detected"), 800)
         }
       }, intervalTime)
     } catch (err: unknown) {
       stopCamera()
       setState("error")
-      setErrorMsg(err instanceof Error ? err.message : "Failed to access camera.")
+      const msg = err instanceof Error ? err.message : "Failed to access camera."
+      setErrorMsg(msg)
     }
   }, [loadModels, startCamera, runDetection, aggregateExpression, computeBestMood, stopCamera])
 
@@ -200,9 +200,7 @@ export function CameraMoodDetector({ onMoodDetected, disabled }: CameraMoodDetec
   }, [cleanup])
 
   const handleConfirm = useCallback(() => {
-    if (bestMood) {
-      onMoodDetected(bestMood)
-    }
+    if (bestMood) onMoodDetected(bestMood)
     cleanup()
     setState("idle")
   }, [bestMood, onMoodDetected, cleanup])
@@ -212,7 +210,15 @@ export function CameraMoodDetector({ onMoodDetected, disabled }: CameraMoodDetec
     setState("idle")
   }, [cleanup])
 
+  const handleFallback = useCallback(() => {
+    cleanup()
+    setState("idle")
+    onFallbackToManual?.()
+  }, [cleanup, onFallbackToManual])
+
   const topExpressions = detectedExpressions.slice(0, 3)
+  const secondsLeft = ((totalFrames - scanFramesRef.current) * (scanDuration / totalFrames) / 1000).toFixed(1)
+  const hasFaceDetected = Object.keys(accumulatedRef.current).length > 0
 
   return (
     <div className="space-y-3">
@@ -243,7 +249,7 @@ export function CameraMoodDetector({ onMoodDetected, disabled }: CameraMoodDetec
                 <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center shrink-0">
                   <AlertTriangle className="w-5 h-5 text-yellow-400" />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 flex-1">
                   <p className="text-sm font-medium text-white">Privacy Notice</p>
                   <p className="text-xs text-white/50 leading-relaxed">
                     This scans your expression locally in your browser. No image or video is saved or sent to any
@@ -278,8 +284,31 @@ export function CameraMoodDetector({ onMoodDetected, disabled }: CameraMoodDetec
                   autoPlay
                   muted
                   playsInline
-                  className="w-full h-48 object-cover scale-x-[-1]"
+                  className="w-full h-64 md:h-80 object-cover scale-x-[-1]"
                 />
+
+                {showGuide && state === "scanning" && (
+                  <svg
+                    className="absolute inset-0 w-full h-full pointer-events-none"
+                    viewBox="0 0 100 100"
+                    preserveAspectRatio="none"
+                  >
+                    <ellipse
+                      cx="50" cy="45" rx="22" ry="28"
+                      fill="none"
+                      stroke="rgba(255,255,255,0.3)"
+                      strokeWidth="1.5"
+                      strokeDasharray="4 3"
+                    />
+                    <ellipse
+                      cx="50" cy="45" rx="22" ry="28"
+                      fill="none"
+                      stroke="rgba(59,130,246,0.5)"
+                      strokeWidth="0.5"
+                    />
+                  </svg>
+                )}
+
                 {state === "initializing" && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/60">
                     <div className="flex flex-col items-center gap-2">
@@ -288,30 +317,55 @@ export function CameraMoodDetector({ onMoodDetected, disabled }: CameraMoodDetec
                     </div>
                   </div>
                 )}
+
                 {state === "scanning" && (
-                  <div className="absolute bottom-2 left-2 right-2">
+                  <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] text-white/60 flex items-center gap-1">
+                        <Scan className="w-3 h-3" />
+                        {hasFaceDetected ? "Face detected" : "Position your face in the frame"}
+                      </span>
+                      <span className="text-[10px] text-white/60 font-mono">{secondsLeft}s left</span>
+                    </div>
                     <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
                       <div
                         className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-200"
                         style={{ width: `${scanProgress}%` }}
                       />
                     </div>
-                    <p className="text-[10px] text-white/50 mt-1 text-center">
-                      Scanning expression... {Math.round(scanProgress)}%
-                    </p>
                   </div>
                 )}
               </div>
+
               <div className="flex items-center justify-between mt-2">
-                <p className="text-xs text-white/40">
-                  <Scan className="w-3 h-3 inline mr-1" />
-                  No images are saved or uploaded
+                <p className="text-xs text-white/40 flex items-center gap-1">
+                  <Lock className="w-3 h-3 text-emerald-400" />
+                  No images are saved or uploaded — all processing is local
                 </p>
                 <Button variant="ghost" size="sm" className="text-xs" onClick={handleCancel}>
                   <CameraOff className="w-3 h-3 mr-1" /> Cancel
                 </Button>
               </div>
             </GlassCard>
+          </motion.div>
+        )}
+
+        {state === "success" && (
+          <motion.div
+            key="success"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            className="flex justify-center py-6"
+          >
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", stiffness: 200, damping: 12 }}
+              className="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center"
+            >
+              <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+            </motion.div>
           </motion.div>
         )}
 
@@ -330,7 +384,7 @@ export function CameraMoodDetector({ onMoodDetected, disabled }: CameraMoodDetec
                 </div>
                 <div>
                   <p className="text-sm font-medium text-white">Mood Detected</p>
-                  <p className="text-xs text-white/50">Suggested from your expression</p>
+                  <p className="text-xs text-white/50">Detected based on facial expression</p>
                 </div>
               </div>
 
@@ -361,7 +415,7 @@ export function CameraMoodDetector({ onMoodDetected, disabled }: CameraMoodDetec
                   Confirm as {EXPRESSION_LABELS[detectedExpressions[0]?.expression] || bestMood}
                 </Button>
                 <Button variant="ghost" size="sm" icon={<RefreshCw className="w-4 h-4" />} onClick={handleRetry}>
-                  Retry
+                  Retry Scan
                 </Button>
               </div>
             </GlassCard>
@@ -376,19 +430,26 @@ export function CameraMoodDetector({ onMoodDetected, disabled }: CameraMoodDetec
             exit={{ opacity: 0 }}
           >
             <GlassCard className="border-rose-500/30">
-              <div className="flex items-center gap-3">
+              <div className="flex items-start gap-3">
                 <div className="w-10 h-10 rounded-full bg-rose-500/20 flex items-center justify-center shrink-0">
                   <AlertTriangle className="w-5 h-5 text-rose-400" />
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 space-y-2">
                   <p className="text-sm font-medium text-white">Camera Unavailable</p>
-                  <p className="text-xs text-white/50 truncate">
-                    {errorMsg || "Could not access camera. Please check permissions."}
+                  <p className="text-xs text-white/50">
+                    {errorMsg || "Could not access camera. Please check your browser permissions."}
                   </p>
+                  <div className="flex gap-2 pt-1">
+                    <Button variant="ghost" size="sm" icon={<RefreshCw className="w-4 h-4" />} onClick={handleRetry}>
+                      Try Again
+                    </Button>
+                    {onFallbackToManual && (
+                      <Button variant="primary" size="sm" icon={<ArrowLeft className="w-4 h-4" />} onClick={handleFallback}>
+                        Pick Mood Manually
+                      </Button>
+                    )}
+                  </div>
                 </div>
-                <Button variant="ghost" size="sm" onClick={handleRetry}>
-                  <RefreshCw className="w-4 h-4" />
-                </Button>
               </div>
             </GlassCard>
           </motion.div>

@@ -1,20 +1,26 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Camera, CalendarDays, CheckCircle2, Send, ChevronLeft, ChevronRight, History } from "lucide-react"
+import { Camera, CalendarDays, CheckCircle2, Send, ChevronLeft, ChevronRight, History, Lock, TrendingUp, TrendingDown, Minus } from "lucide-react"
 import { GlassCard } from "@/components/ui/glass-card"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useLocalStorage } from "@/lib/hooks/useLocalStorage"
 import { useToast } from "@/components/providers/ToastProvider"
 import { CameraMoodDetector } from "@/components/mood/CameraMoodDetector"
-import { format, addDays, subDays, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, parse } from "date-fns"
+import { format, addDays, subDays, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, parse, subYears } from "date-fns"
 
 interface DailyMood {
   date: string
   mood: string
   note: string
+}
+
+interface NumericMoodEntry {
+  mood: number
+  note: string
+  date: string
 }
 
 const MOODS = [
@@ -30,27 +36,70 @@ const MOODS = [
   { id: "overwhelmed", label: "Overwhelmed", emoji: "😩" },
 ]
 
+const MOOD_TO_NUMERIC: Record<string, number> = {
+  excited: 5,
+  happy: 5,
+  calm: 4,
+  neutral: 3,
+  anxious: 2,
+  overwhelmed: 2,
+  stressed: 2,
+  sad: 2,
+  tired: 2,
+  angry: 1,
+}
+
 const moodEmojis: Record<string, string> = {
   happy: "😊", sad: "😢", anxious: "😰", calm: "😌",
   angry: "😠", stressed: "😫", excited: "🎉", tired: "😴",
   neutral: "😐", overwhelmed: "😩",
 }
 
+function getComparisonText(currentMood: string, yesterdayMood: string | null, weeklyAvg: number | null): string | null {
+  if (!yesterdayMood && weeklyAvg === null) return null
+
+  const currentVal = MOOD_TO_NUMERIC[currentMood] || 3
+
+  if (yesterdayMood) {
+    const yesterdayVal = MOOD_TO_NUMERIC[yesterdayMood] || 3
+    if (currentVal > yesterdayVal) return "You're feeling better than yesterday ✨"
+    if (currentVal < yesterdayVal) return "You're feeling lower than yesterday"
+    return "Same mood as yesterday"
+  }
+
+  if (weeklyAvg !== null) {
+    if (currentVal > weeklyAvg) return "Above your weekly average ✨"
+    if (currentVal < weeklyAvg) return "Below your weekly average"
+    return "Matches your weekly average"
+  }
+
+  return null
+}
+
 export default function MoodScannerPage() {
   const [entries, setEntries] = useLocalStorage<DailyMood[]>("calmora_daily_mood", [])
+  const [numericEntries, setNumericEntries] = useLocalStorage<NumericMoodEntry[]>("calmora_mood_entries", [])
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [selectedMood, setSelectedMood] = useState<string | null>(null)
   const [note, setNote] = useState("")
   const [saving, setSaving] = useState(false)
   const [showWeek, setShowWeek] = useState(true)
+  const [justSaved, setJustSaved] = useState(false)
+  const [showManualPicker, setShowManualPicker] = useState(false)
   const { showToast } = useToast()
 
   const dateKey = format(selectedDate, "yyyy-MM-dd")
   const todayKey = format(new Date(), "yyyy-MM-dd")
+  const yesterdayKey = format(subDays(selectedDate, 1), "yyyy-MM-dd")
 
   const existingEntry = useMemo(
     () => entries.find((e) => e.date === dateKey),
     [entries, dateKey]
+  )
+
+  const yesterdayEntry = useMemo(
+    () => entries.find((e) => e.date === yesterdayKey),
+    [entries, yesterdayKey]
   )
 
   const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 })
@@ -65,19 +114,37 @@ export default function MoodScannerPage() {
     })
   }, [entries, weekDays])
 
-  const handleDateChange = (date: Date) => {
+  const weeklyAverage = useMemo(() => {
+    const vals = weekEntries
+      .map((e) => (e.mood ? MOOD_TO_NUMERIC[e.mood] : null))
+      .filter((v): v is number => v !== null)
+    return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : null
+  }, [weekEntries])
+
+  const comparisonText = useMemo(() => {
+    if (!justSaved || !selectedMood) return null
+    return getComparisonText(selectedMood, yesterdayEntry?.mood || null, weeklyAverage)
+  }, [justSaved, selectedMood, yesterdayEntry, weeklyAverage])
+
+  const handleDateChange = useCallback((date: Date) => {
     setSelectedDate(date)
     setSelectedMood(null)
     setNote("")
-  }
+    setJustSaved(false)
+  }, [])
 
-  const goToday = () => handleDateChange(new Date())
+  const goToday = useCallback(() => handleDateChange(new Date()), [handleDateChange])
 
-  const handleMoodDetected = (moodId: string) => {
+  const handleMoodDetected = useCallback((moodId: string) => {
     setSelectedMood(moodId)
-  }
+    setShowManualPicker(false)
+  }, [])
 
-  const handleSave = () => {
+  const handleFallbackToManual = useCallback(() => {
+    setShowManualPicker(true)
+  }, [])
+
+  const handleSave = useCallback(() => {
     if (!selectedMood) return
     setSaving(true)
 
@@ -92,6 +159,12 @@ export default function MoodScannerPage() {
       return [...filtered, newEntry]
     })
 
+    const numericValue = MOOD_TO_NUMERIC[selectedMood] || 3
+    setNumericEntries((prev) => {
+      const filtered = prev.filter((e) => e.date !== dateKey)
+      return [...filtered, { mood: numericValue, note: note.trim(), date: dateKey }]
+    })
+
     showToast(
       dateKey === todayKey
         ? "Mood logged for today!"
@@ -99,10 +172,16 @@ export default function MoodScannerPage() {
       "xp",
       5
     )
+    setJustSaved(true)
     setSaving(false)
-  }
+  }, [selectedMood, dateKey, todayKey, note, setEntries, setNumericEntries, showToast])
 
-  const canSave = selectedMood && (!existingEntry || existingEntry.mood !== selectedMood || existingEntry.note !== note.trim())
+  const handleOverrideMood = useCallback((moodId: string) => {
+    setSelectedMood(moodId)
+    setJustSaved(false)
+  }, [])
+
+  const canSave = selectedMood && !saving
 
   return (
     <div className="space-y-6">
@@ -125,7 +204,10 @@ export default function MoodScannerPage() {
               <div className="mb-4">
                 <label className="text-sm font-medium text-white/70 mb-2 block">Select Date</label>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => handleDateChange(subDays(selectedDate, 1))} className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all">
+                  <button
+                    onClick={() => handleDateChange(subDays(selectedDate, 1))}
+                    className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all"
+                  >
                     <ChevronLeft className="w-4 h-4 text-white/60" />
                   </button>
                   <input
@@ -137,30 +219,80 @@ export default function MoodScannerPage() {
                     }}
                     className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-blue-500/50 [color-scheme:dark]"
                   />
-                  <button onClick={() => handleDateChange(addDays(selectedDate, 1))} disabled={dateKey === todayKey} className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all disabled:opacity-30">
+                  <button
+                    onClick={() => handleDateChange(addDays(selectedDate, 1))}
+                    disabled={dateKey === todayKey}
+                    className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all disabled:opacity-30"
+                  >
                     <ChevronRight className="w-4 h-4 text-white/60" />
                   </button>
                 </div>
               </div>
 
-              {existingEntry && (
+              {existingEntry && !justSaved && (
                 <div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                     <span className="text-sm text-emerald-300">
-                      Mood already logged for this date: {moodEmojis[existingEntry.mood]} {existingEntry.mood}
+                      Mood already logged: {moodEmojis[existingEntry.mood]} {existingEntry.mood}
                     </span>
                   </div>
                 </div>
               )}
 
-              <CameraMoodDetector onMoodDetected={handleMoodDetected} />
+              {!showManualPicker && (
+                <CameraMoodDetector
+                  onMoodDetected={handleMoodDetected}
+                  onFallbackToManual={handleFallbackToManual}
+                />
+              )}
+
+              {showManualPicker && (
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                  <p className="text-xs text-white/50 flex items-center gap-1 mb-3">
+                    <Lock className="w-3 h-3 text-emerald-400" />
+                    No camera needed — pick your mood manually
+                  </p>
+                  <Button variant="ghost" size="sm" icon={<Camera className="w-4 h-4" />} onClick={() => setShowManualPicker(false)}>
+                    Try Camera Again
+                  </Button>
+                </div>
+              )}
             </GlassCard>
           </motion.div>
 
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
             <GlassCard>
-              <h2 className="text-sm font-medium text-white/70 mb-3">Or pick your mood manually</h2>
+              <h2 className="text-sm font-medium text-white/70 mb-3">Your mood for {format(selectedDate, "MMM d, yyyy")}</h2>
+
+              {justSaved && selectedMood && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-4 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20"
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="text-2xl">{moodEmojis[selectedMood]}</span>
+                    <div>
+                      <p className="text-base font-semibold text-white capitalize">{selectedMood}</p>
+                      {note && <p className="text-xs text-white/50">{note}</p>}
+                    </div>
+                  </div>
+                  {comparisonText && (
+                    <div className="flex items-center gap-1.5 text-xs text-white/60 border-t border-emerald-500/20 pt-2 mt-2">
+                      {comparisonText.includes("better") || comparisonText.includes("Above") ? (
+                        <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+                      ) : comparisonText.includes("lower") || comparisonText.includes("Below") ? (
+                        <TrendingDown className="w-3.5 h-3.5 text-rose-400" />
+                      ) : (
+                        <Minus className="w-3.5 h-3.5 text-white/40" />
+                      )}
+                      <span>{comparisonText}</span>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+
               <div className="grid grid-cols-5 gap-2">
                 {MOODS.map((mood) => {
                   const isSelected = selectedMood === mood.id
@@ -169,7 +301,7 @@ export default function MoodScannerPage() {
                       key={mood.id}
                       whileHover={{ scale: 1.08 }}
                       whileTap={{ scale: 0.95 }}
-                      onClick={() => setSelectedMood(mood.id)}
+                      onClick={() => handleOverrideMood(mood.id)}
                       className={cn(
                         "flex flex-col items-center gap-1 p-3 rounded-xl border transition-all",
                         isSelected
@@ -194,17 +326,36 @@ export default function MoodScannerPage() {
                     exit={{ opacity: 0, height: 0 }}
                     className="space-y-3 mt-4 overflow-hidden"
                   >
-                    <input
-                      type="text"
-                      value={note}
-                      onChange={(e) => setNote(e.target.value)}
-                      placeholder="Add a note (optional)..."
-                      maxLength={100}
-                      className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm placeholder-white/30 focus:outline-none focus:border-blue-500/50"
-                    />
-                    <Button onClick={handleSave} icon={<Send className="w-4 h-4" />} loading={saving} disabled={!canSave} className="w-full">
-                      Save Mood{existingEntry ? " (Update)" : ""}
-                    </Button>
+                    {justSaved ? (
+                      <div className="flex gap-2">
+                        <Button variant="glass" size="sm" className="flex-1" onClick={() => setJustSaved(false)}>
+                          Edit
+                        </Button>
+                        <Button variant="primary" size="sm" className="flex-1" icon={<CheckCircle2 className="w-4 h-4" />} disabled>
+                          Saved
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <input
+                          type="text"
+                          value={note}
+                          onChange={(e) => setNote(e.target.value)}
+                          placeholder="Add a note (optional)..."
+                          maxLength={100}
+                          className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm placeholder-white/30 focus:outline-none focus:border-blue-500/50"
+                        />
+                        <Button
+                          onClick={handleSave}
+                          icon={<Send className="w-4 h-4" />}
+                          loading={saving}
+                          disabled={!canSave}
+                          className="w-full"
+                        >
+                          {existingEntry ? "Update Mood" : "Save Mood"}
+                        </Button>
+                      </>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -250,15 +401,10 @@ export default function MoodScannerPage() {
                           )}
                         >
                           <span className="text-xs text-white/40 w-8">{format(day, "EEE")}</span>
-                          <span className={cn(
-                            "text-xs font-medium flex-1",
-                            isSelectedDate ? "text-white" : "text-white/60"
-                          )}>
+                          <span className={cn("text-xs font-medium flex-1", isSelectedDate ? "text-white" : "text-white/60")}>
                             {format(day, "MMM d")}
                           </span>
-                          <span className="text-sm">
-                            {mood ? (moodEmojis[mood] || "😐") : "—"}
-                          </span>
+                          <span className="text-sm">{mood ? (moodEmojis[mood] || "😐") : "—"}</span>
                         </button>
                       )
                     })}
@@ -285,6 +431,12 @@ export default function MoodScannerPage() {
                       <span className="text-white/40">This week</span>
                       <span className="text-white font-medium">{weekCount}/7 days</span>
                     </div>
+                    {weeklyAverage !== null && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-white/40">Weekly avg</span>
+                        <span className="text-white font-medium">{weeklyAverage.toFixed(1)}/5</span>
+                      </div>
+                    )}
                     {latestMood && (
                       <div className="flex justify-between text-xs">
                         <span className="text-white/40">Latest mood</span>
