@@ -28,6 +28,7 @@ import { NextBestAction } from "@/components/dashboard/NextBestAction"
 import { WeeklyInsight } from "@/components/dashboard/WeeklyInsight"
 import { StreakNudge } from "@/components/dashboard/StreakNudge"
 import { ConfettiCelebration } from "@/components/dashboard/ConfettiCelebration"
+import { MoodCheck } from "@/components/dashboard/MoodCheck"
 
 // Framer motion list container animation variants
 const container = {
@@ -182,6 +183,10 @@ export default function Home() {
               </div>
             </div>
           </GlassCard>
+        </motion.div>
+
+        <motion.div variants={item}>
+          <MoodCheck />
         </motion.div>
 
         <motion.div variants={item}>

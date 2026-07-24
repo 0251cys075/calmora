@@ -16,12 +16,14 @@ import { useState, useEffect, useMemo, useRef } from "react"
 import {
   BookOpen, Sparkles, Heart, Target,
   Send, Brain, Lightbulb,
-  Clock, AlertCircle
+  Clock, AlertCircle, BookMarked
 } from "lucide-react"
 import { journalApi, withFallback, isOnline, type JournalEntry } from "@/lib/api"
 import { useLocalStorage } from "@/lib/hooks/useLocalStorage"
 import { validateSchema, journalEntrySchema } from "@/lib/validation"
 import { useToast } from "@/components/providers/ToastProvider"
+import { Bookshelf } from "@/components/journal/Bookshelf"
+import { cn } from "@/lib/utils"
 
 // Prompts used for daily writing suggestions
 const prompts = [
@@ -34,6 +36,7 @@ const prompts = [
 
 export default function JournalPage() {
   const { showToast } = useToast()
+  const [activeTab, setActiveTab] = useState<"journal" | "books">("journal")
   const [activePrompt, setActivePrompt] = useState(0)
   const [journalEntry, setJournalEntry] = useState("")
   const [showPrompts, setShowPrompts] = useState(true)
@@ -184,6 +187,20 @@ export default function JournalPage() {
         </div>
       </motion.div>
 
+      <div className="flex gap-1 p-1 rounded-xl bg-white/5 border border-white/10 w-fit">
+        <button onClick={() => setActiveTab("journal")} className={cn("relative px-4 py-2 text-sm font-medium rounded-lg transition-all flex items-center gap-2", activeTab === "journal" ? "text-white bg-white/10 border border-white/10" : "text-white/50 hover:text-white/80")}>
+          <BookOpen className="w-4 h-4" />
+          Journal
+        </button>
+        <button onClick={() => setActiveTab("books")} className={cn("relative px-4 py-2 text-sm font-medium rounded-lg transition-all flex items-center gap-2", activeTab === "books" ? "text-white bg-white/10 border border-white/10" : "text-white/50 hover:text-white/80")}>
+          <BookMarked className="w-4 h-4" />
+          Books
+        </button>
+      </div>
+
+      {activeTab === "books" ? (
+        <Bookshelf />
+      ) : (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -331,6 +348,7 @@ export default function JournalPage() {
           </GlassCard>
         </motion.div>
       </div>
+      )}
     </div>
   )
 }
