@@ -25,6 +25,7 @@ import {
   GraduationCap,
   Shield,
   AlertTriangle,
+  Camera,
   Menu,
   X,
   Sparkles,
@@ -49,6 +50,7 @@ const navItems = [
   { href: "/student", label: "Student", icon: GraduationCap, color: "text-sky-400" },
   { href: "/safe-circle", label: "Safe Circle", icon: Shield, color: "text-teal-400" },
   { href: "/emergency", label: "Emergency", icon: AlertTriangle, color: "text-red-400" },
+  { href: "/mood-scanner", label: "Mood Scanner", icon: Camera, color: "text-emerald-400" },
 ]
 
 export function Sidebar() {

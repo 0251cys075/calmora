@@ -15,7 +15,7 @@ import { useEffect } from "react"
 import { useAuth } from "@/lib/hooks/useAuth"
 
 // List of routes requiring active user authentication sessions
-const protectedRoutes = ["/journal", "/habits", "/profile", "/reports", "/challenges", "/community", "/student", "/learn", "/ai-companion", "/relax", "/messages", "/safe-circle"]
+const protectedRoutes = ["/journal", "/habits", "/profile", "/reports", "/challenges", "/community", "/student", "/learn", "/ai-companion", "/relax", "/messages", "/safe-circle", "/mood-scanner"]
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
