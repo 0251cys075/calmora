@@ -23,6 +23,7 @@ import {
   Users,
   Music,
   GraduationCap,
+  Shield,
   AlertTriangle,
   Menu,
   X,
@@ -46,6 +47,7 @@ const navItems = [
   { href: "/messages", label: "Messages", icon: MessageSquare, color: "text-cyan-400" },
   { href: "/relax", label: "Relax Zone", icon: Music, color: "text-teal-400" },
   { href: "/student", label: "Student", icon: GraduationCap, color: "text-sky-400" },
+  { href: "/safe-circle", label: "Safe Circle", icon: Shield, color: "text-teal-400" },
   { href: "/emergency", label: "Emergency", icon: AlertTriangle, color: "text-red-400" },
 ]
 
