@@ -12,10 +12,14 @@ const helmet = require("helmet")
 const morgan = require("morgan")
 const mongoose = require("mongoose")
 const http = require("http")
+const dns = require("dns")
 const { Server } = require("socket.io")
 
 // Load environment variables from .env file
 dotenv.config()
+
+// Fix DNS resolution on Windows — Node.js may use 127.0.0.1 which doesn't support SRV records
+dns.setServers(["8.8.8.8", "8.8.4.4"])
 
 const app = express()
 const PORT = process.env.PORT || 5000
@@ -93,17 +97,14 @@ const io = new Server(server, {
 // Register Safe Circle Socket.IO handlers
 require("./safe-circle")(io)
 
-// Connect to MongoDB and start the server on connection success
+// Start HTTP server immediately (Safe Circle doesn't need MongoDB)
+server.listen(PORT, () => {
+  console.log(`Calmora API running on port ${PORT}`)
+})
+
+// Connect to MongoDB — non-blocking, log errors but don't crash
 mongoose.connect(process.env.MONGODB_URI || "mongodb://localhost:27017/calmora")
-  .then(() => {
-    console.log("Connected to MongoDB")
-    server.listen(PORT, () => {
-      console.log(`Calmora API running on port ${PORT}`)
-    })
-  })
-  .catch((err) => {
-    console.error("MongoDB connection error:", err)
-    process.exit(1) // Terminate process on connection failure
-  })
+  .then(() => console.log("Connected to MongoDB"))
+  .catch((err) => console.warn("MongoDB unavailable — API routes requiring DB will fail:", err.message))
 
 module.exports = { app, server, io }

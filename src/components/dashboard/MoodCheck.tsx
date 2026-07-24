@@ -2,12 +2,13 @@
 
 import { useState, useMemo } from "react"
 import { motion } from "framer-motion"
-import { Smile, Frown, AlertCircle, Feather, Angry, Zap, Heart, Moon, Meh, CloudRain, Send, CheckCircle2 } from "lucide-react"
+import { Smile, Frown, AlertCircle, Feather, Angry, Zap, Heart, Moon, Meh, CloudRain, Send, CheckCircle2, Camera } from "lucide-react"
 import { GlassCard } from "@/components/ui/glass-card"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useLocalStorage } from "@/lib/hooks/useLocalStorage"
 import { useToast } from "@/components/providers/ToastProvider"
+import { CameraMoodDetector } from "@/components/mood/CameraMoodDetector"
 import { format } from "date-fns"
 
 interface MoodOption {
@@ -75,6 +76,7 @@ export function MoodCheck() {
   const [selectedMood, setSelectedMood] = useState<string | null>(null)
   const [note, setNote] = useState("")
   const [saving, setSaving] = useState(false)
+  const [cameraEnabled] = useLocalStorage("calmora_camera_mood_enabled", true)
   const { showToast } = useToast()
 
   const todayKey = getTodayKey()
@@ -165,6 +167,14 @@ export function MoodCheck() {
           )
         })}
       </div>
+
+      {cameraEnabled && (
+        <div className="mb-3">
+          <CameraMoodDetector
+            onMoodDetected={(moodId) => setSelectedMood(moodId)}
+          />
+        </div>
+      )}
 
       {selectedMood && (
         <motion.div

@@ -12,13 +12,15 @@ import { GlassCard } from "@/components/ui/glass-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
+import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Trophy, Star, Medal, Flame, Zap,
   Shield, Heart, Brain, Target,
-  Settings, LogOut, Edit3, X, Moon, Sun, Bell, Download, Share2
+  Settings, LogOut, Edit3, X, Moon, Sun, Bell, Camera, Download, Share2
 } from "lucide-react"
 import { useAuth } from "@/lib/hooks/useAuth"
+import { useLocalStorage } from "@/lib/hooks/useLocalStorage"
 import { useState, useRef, useCallback, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -47,6 +49,7 @@ export default function ProfilePage() {
   const router = useRouter()
   const [showSettings, setShowSettings] = useState(false)
   const [theme, setTheme] = useState<"dark" | "light">("dark")
+  const [cameraMoodEnabled, setCameraMoodEnabled] = useLocalStorage("calmora_camera_mood_enabled", true)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   const initials = user?.name
@@ -326,6 +329,32 @@ export default function ProfilePage() {
                       </div>
                     </div>
                     <Badge variant="success" size="sm">Enabled</Badge>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Camera className="w-5 h-5 text-cyan-400" />
+                      <div>
+                        <p className="text-sm font-medium text-white">Camera Mood Detection</p>
+                        <p className="text-xs text-white/40">Scan your expression with your camera to detect your mood</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setCameraMoodEnabled(!cameraMoodEnabled)}
+                      className={cn(
+                        "relative w-11 h-6 rounded-full transition-colors",
+                        cameraMoodEnabled ? "bg-emerald-500" : "bg-white/20"
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform",
+                          cameraMoodEnabled ? "translate-x-[22px]" : "translate-x-0.5"
+                        )}
+                      />
+                    </button>
                   </div>
                 </div>
               </div>
