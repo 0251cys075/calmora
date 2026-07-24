@@ -307,125 +307,122 @@ export function HybridMoodQuiz({ onComplete, autoStart = true }: HybridMoodQuizP
   const timerOffset = CIRCUMFERENCE * (1 - timerFraction)
   const isLowTime = timeLeft <= 3
 
-  if (phase === "loading") {
-    return (
-      <GlassCard glow className="border-purple-500/20">
+  return (
+    <GlassCard glow className="border-purple-500/20 overflow-hidden">
+      <div className={phase === "loading" ? "block" : "hidden"}>
         <div className="flex flex-col items-center justify-center py-10 gap-3">
-          <div className="relative">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-cyan-500 animate-pulse flex items-center justify-center">
-              <Sparkles className="w-6 h-6 text-white" />
-            </div>
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-cyan-500 animate-pulse flex items-center justify-center">
+            <Sparkles className="w-6 h-6 text-white" />
           </div>
           <p className="text-sm text-white/70 font-medium">Initializing Hybrid Assessment</p>
           <p className="text-xs text-white/40">Loading models and camera...</p>
         </div>
-      </GlassCard>
-    )
-  }
-
-  return (
-    <GlassCard glow className="border-purple-500/20 overflow-hidden">
-      <div className="flex items-center gap-3 mb-4">
-        <div className={cn(
-          "w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-cyan-500 flex items-center justify-center",
-          phase === "results" && "animate-pulse"
-        )}>
-          {phase === "results" ? (
-            <span className="text-lg">{SCORE_TO_MOOD.find((r) => r.mood === resultMood)?.emoji}</span>
-          ) : (
-            <BarChart3 className="w-5 h-5 text-white" />
-          )}
-        </div>
-        <div>
-          <p className="text-base font-semibold text-white">Hybrid Mood Assessment</p>
-          {phase === "quiz" && (
-            <p className="text-xs text-white/40">
-              Question {currentQuestion + 1} of {QUESTIONS.length}
-            </p>
-          )}
-        </div>
-        {!cameraAvailable && phase !== "results" && (
-          <span className="ml-auto px-2 py-0.5 rounded-full bg-amber-500/20 text-[9px] text-amber-300 font-medium border border-amber-500/20">
-            Quiz only
-          </span>
-        )}
       </div>
 
-      {expressionNote && phase !== "results" && (
-        <div className="mb-3 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[10px] text-amber-300 flex items-start gap-1.5">
-          <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
-          <span>{expressionNote}</span>
-        </div>
-      )}
-
-      {errorMsg && (
-        <div className="mb-3 p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-[10px] text-rose-300">{errorMsg}</div>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="flex flex-col gap-3">
+      <div className={phase === "loading" ? "hidden" : "block"}>
+        <div className="flex items-center gap-3 mb-4">
           <div className={cn(
-            "relative rounded-2xl overflow-hidden bg-black/80 border-2 transition-all duration-500",
-            phase === "quiz" && cameraAvailable
-              ? "border-purple-500/40 shadow-[0_0_30px_-6px_rgba(168,85,247,0.3)]"
-              : "border-white/10",
-            phase === "quiz" && cameraAvailable && "animate-pulse-glow"
+            "w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-cyan-500 flex items-center justify-center",
+            phase === "results" && "animate-pulse"
           )}>
-            <video
-              ref={videoRef}
-              autoPlay
-              muted
-              playsInline
-              className={cn(
-                "w-full object-cover scale-x-[-1]",
-                cameraAvailable ? "aspect-[4/3]" : "h-40",
-              )}
-            />
-            {!cameraAvailable && !expressionNote && (
-              <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/60">
-                <Loader2 className="w-5 h-5 text-white animate-spin" />
-                <span className="text-xs text-white/60">Starting camera...</span>
-              </div>
-            )}
-            {!cameraAvailable && expressionNote && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                <div className="text-center">
-                  <div className="w-12 h-12 mx-auto mb-2 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
-                    <AlertTriangle className="w-6 h-6 text-amber-400" />
-                  </div>
-                  <p className="text-xs text-amber-300/80">Camera unavailable</p>
-                  <p className="text-[10px] text-white/40 mt-1">Quiz-only mode active</p>
-                </div>
-              </div>
-            )}
-            {cameraAvailable && (
-              <div className={cn(
-                "absolute bottom-2 left-2 px-2 py-0.5 rounded-full text-[9px] font-medium backdrop-blur-sm border transition-colors",
-                phase === "quiz"
-                  ? "bg-emerald-500/30 border-emerald-400/40 text-emerald-200"
-                  : "bg-white/10 border-white/20 text-white/50"
-              )}>
-                {phase === "quiz" ? "● Live analysis" : "Analysis complete"}
-              </div>
+            {phase === "results" ? (
+              <span className="text-lg">{SCORE_TO_MOOD.find((r) => r.mood === resultMood)?.emoji}</span>
+            ) : (
+              <BarChart3 className="w-5 h-5 text-white" />
             )}
           </div>
-
-          {phase === "quiz" && q && (
-            <div className="flex items-center justify-center gap-1 text-[10px] text-white/30">
-              {QUESTIONS.map((_, i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    "w-1.5 h-1.5 rounded-full transition-all duration-300",
-                    i === currentQuestion ? "bg-purple-400 w-3" : i < currentQuestion ? "bg-purple-400/40" : "bg-white/10"
-                  )}
-                />
-              ))}
-            </div>
+          <div>
+            <p className="text-base font-semibold text-white">Hybrid Mood Assessment</p>
+            {phase === "quiz" && (
+              <p className="text-xs text-white/40">
+                Question {currentQuestion + 1} of {QUESTIONS.length}
+              </p>
+            )}
+          </div>
+          {!cameraAvailable && phase !== "results" && (
+            <span className="ml-auto px-2 py-0.5 rounded-full bg-amber-500/20 text-[9px] text-amber-300 font-medium border border-amber-500/20">
+              Quiz only
+            </span>
           )}
         </div>
 
-        <div className="flex flex-col justify-center min-h-[260px]">
+        {expressionNote && phase !== "results" && (
+          <div className="mb-3 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[10px] text-amber-300 flex items-start gap-1.5">
+            <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
+            <span>{expressionNote}</span>
+          </div>
+        )}
+
+        {errorMsg && (
+          <div className="mb-3 p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-[10px] text-rose-300">{errorMsg}</div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="flex flex-col gap-3">
+            <div className={cn(
+              "relative rounded-2xl overflow-hidden bg-black/80 border-2 transition-all duration-500",
+              phase === "quiz" && cameraAvailable
+                ? "border-purple-500/40 shadow-[0_0_30px_-6px_rgba(168,85,247,0.3)]"
+                : "border-white/10",
+              phase === "quiz" && cameraAvailable && "animate-pulse-glow"
+            )}>
+              <video
+                ref={videoRef}
+                autoPlay
+                muted
+                playsInline
+                className={cn(
+                  "w-full object-cover scale-x-[-1]",
+                  cameraAvailable ? "aspect-[4/3]" : "h-40",
+                )}
+              />
+
+
+                {!cameraAvailable && !expressionNote && (
+                  <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/60">
+                    <Loader2 className="w-5 h-5 text-white animate-spin" />
+                    <span className="text-xs text-white/60">Starting camera...</span>
+                  </div>
+                )}
+                {!cameraAvailable && expressionNote && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                    <div className="text-center">
+                      <div className="w-12 h-12 mx-auto mb-2 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
+                        <AlertTriangle className="w-6 h-6 text-amber-400" />
+                      </div>
+                      <p className="text-xs text-amber-300/80">Camera unavailable</p>
+                      <p className="text-[10px] text-white/40 mt-1">Quiz-only mode active</p>
+                    </div>
+                  </div>
+                )}
+                {cameraAvailable && (
+                  <div className={cn(
+                    "absolute bottom-2 left-2 px-2 py-0.5 rounded-full text-[9px] font-medium backdrop-blur-sm border transition-colors",
+                    phase === "quiz"
+                      ? "bg-emerald-500/30 border-emerald-400/40 text-emerald-200"
+                      : "bg-white/10 border-white/20 text-white/50"
+                  )}>
+                    {phase === "quiz" ? "● Live analysis" : "Analysis complete"}
+                  </div>
+                )}
+              </div>
+
+              {phase === "quiz" && (
+                <div className="flex items-center justify-center gap-1 text-[10px] text-white/30">
+                  {QUESTIONS.map((_, i) => (
+                    <div
+                      key={i}
+                      className={cn(
+                        "w-1.5 h-1.5 rounded-full transition-all duration-300",
+                        i === currentQuestion ? "bg-purple-400 w-3" : i < currentQuestion ? "bg-purple-400/40" : "bg-white/10"
+                      )}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col justify-center min-h-[260px]">
           <AnimatePresence mode="wait">
             {phase === "quiz" && q && (
               <motion.div
@@ -582,6 +579,7 @@ export function HybridMoodQuiz({ onComplete, autoStart = true }: HybridMoodQuizP
             )}
           </AnimatePresence>
         </div>
+      </div>
       </div>
     </GlassCard>
   )
