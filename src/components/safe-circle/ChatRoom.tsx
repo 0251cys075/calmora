@@ -1,59 +1,70 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { Send, Flag, LogOut, AlertTriangle, Shield, Clock } from "lucide-react"
+import { motion } from "framer-motion"
+import { Send, Flag, LogOut, AlertTriangle, Shield, Clock, Phone, PhoneOff, Video, VideoOff } from "lucide-react"
 import { GlassCard } from "@/components/ui/glass-card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import {
   type ChatMessage, type Topic, filterBlockedContent, detectCrisisKeywords,
-  HELPLINE_TEXT, PEER_RESPONSES,
+  HELPLINE_TEXT,
 } from "@/lib/safe-circle-utils"
 import { CrisisPopup } from "./CrisisPopup"
 
 interface ChatRoomProps {
+  sessionId: string
   username: string
   peerUsername: string
   topic: Topic
   onEndSession: () => void
-  onFlagged: (keywords: string[]) => void
+  onSendMessage: (text: string) => void
+  onTyping: () => void
+  onReport: (keywords?: string[]) => void
+  // Voice controls
+  onVoiceAccept: () => void
+  onVoiceDecline: () => void
+  onVoiceEnd: () => void
+  voiceCallActive: boolean
+  voiceCallRequested: boolean
+  voiceCallPeerRequested: boolean
+  onRequestVoice: () => void
+  // Video controls
+  onVideoAccept: () => void
+  onVideoDecline: () => void
+  onVideoEnd: () => void
+  videoCallActive: boolean
+  videoCallRequested: boolean
+  videoCallPeerRequested: boolean
+  onRequestVideo: () => void
 }
 
-function generatePeerId(): string {
-  return `peer_${Date.now()}`
-}
-
-export function ChatRoom({ username, peerUsername, topic, onEndSession, onFlagged }: ChatRoomProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: "welcome",
-      sender: "peer",
-      text: `Hi! I'm here to talk about ${topic.toLowerCase()}. How are you feeling today?`,
-      timestamp: Date.now(),
-    },
-  ])
+export function ChatRoom({
+  sessionId, username, peerUsername, topic,
+  onEndSession, onSendMessage, onTyping, onReport,
+  onVoiceAccept, onVoiceDecline, onVoiceEnd,
+  voiceCallActive, voiceCallRequested, voiceCallPeerRequested, onRequestVoice,
+  onVideoAccept, onVideoDecline, onVideoEnd,
+  videoCallActive, videoCallRequested, videoCallPeerRequested, onRequestVideo,
+}: ChatRoomProps) {
+  const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputText, setInputText] = useState("")
-  const [isSending, setIsSending] = useState(false)
-  const [peerTyping, setPeerTyping] = useState(false)
-  const [showConfirmEnd, setShowConfirmEnd] = useState(false)
-  const [showReportDialog, setShowReportDialog] = useState(false)
   const [blockWarnings, setBlockWarnings] = useState<string[]>([])
   const [showCrisisPopup, setShowCrisisPopup] = useState(false)
   const [sessionTimer, setSessionTimer] = useState(0)
   const [showTimerWarning, setShowTimerWarning] = useState(false)
+  const [showConfirmEnd, setShowConfirmEnd] = useState(false)
+  const [showReportDialog, setShowReportDialog] = useState(false)
+  const [peerTyping, setPeerTyping] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  const peerIdRef = useRef(generatePeerId())
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [])
 
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages, scrollToBottom])
+  useEffect(() => { scrollToBottom() }, [messages, scrollToBottom])
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -72,19 +83,20 @@ export function ChatRoom({ username, peerUsername, topic, onEndSession, onFlagge
     return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
   }
 
-  const addPeerResponse = useCallback((text: string) => {
-    setPeerTyping(true)
-    const typingDelay = 1500 + Math.random() * 2500
-    setTimeout(() => {
-      setPeerTyping(false)
-      const msg: ChatMessage = { id: `peer_${Date.now()}`, sender: "peer", text, timestamp: Date.now() }
-      setMessages((prev) => [...prev, msg])
-    }, typingDelay)
+  // Called by parent when peer message arrives
+  const addPeerMessage = useCallback((text: string, timestamp: number) => {
+    const msg: ChatMessage = { id: `peer_${timestamp}`, sender: "peer", text, timestamp }
+    setMessages((prev) => [...prev, msg])
+  }, [])
+
+  const addOwnMessage = useCallback((text: string) => {
+    const msg: ChatMessage = { id: `self_${Date.now()}`, sender: "self", text, timestamp: Date.now() }
+    setMessages((prev) => [...prev, msg])
   }, [])
 
   const handleSend = () => {
     const text = inputText.trim()
-    if (!text || isSending) return
+    if (!text) return
 
     const { clean, warnings } = filterBlockedContent(text)
     if (!clean) {
@@ -96,39 +108,16 @@ export function ChatRoom({ username, peerUsername, topic, onEndSession, onFlagge
     const crisisKeywords = detectCrisisKeywords(text)
     if (crisisKeywords.length > 0) {
       setShowCrisisPopup(true)
-      onFlagged(crisisKeywords)
-      const sessionKeyword: ChatMessage = {
-        id: `sys_crisis_${Date.now()}`,
-        sender: "self",
-        text,
-        timestamp: Date.now(),
-      }
-      setMessages((prev) => [...prev, sessionKeyword])
+      onReport(crisisKeywords)
+      addOwnMessage(text)
+      onSendMessage(text)
       setInputText("")
-      setIsSending(true)
-      setTimeout(() => {
-        addPeerResponse("I hear you, and I'm glad you shared that. Please know you're not alone — there are people who care and resources that can help. Would you like to talk more about what's going on?")
-        setIsSending(false)
-      }, 1000)
       return
     }
 
-    const userMsg: ChatMessage = {
-      id: `self_${Date.now()}`,
-      sender: "self",
-      text,
-      timestamp: Date.now(),
-    }
-    setMessages((prev) => [...prev, userMsg])
+    addOwnMessage(text)
+    onSendMessage(text)
     setInputText("")
-    setIsSending(true)
-
-    const responses = PEER_RESPONSES[topic]
-    const peerText = responses[Math.floor(Math.random() * responses.length)]
-    setTimeout(() => {
-      addPeerResponse(peerText)
-      setIsSending(false)
-    }, 800)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -137,6 +126,14 @@ export function ChatRoom({ username, peerUsername, topic, onEndSession, onFlagge
       handleSend()
     }
   }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputText(e.target.value)
+    onTyping()
+  }
+
+  const voiceIncoming = voiceCallPeerRequested && !voiceCallActive
+  const videoIncoming = videoCallPeerRequested && !videoCallActive
 
   return (
     <>
@@ -165,9 +162,7 @@ export function ChatRoom({ username, peerUsername, topic, onEndSession, onFlagge
               <Flag className="w-4 h-4" />
             </button>
             <button
-              onClick={() => {
-                setShowConfirmEnd(true)
-              }}
+              onClick={() => setShowConfirmEnd(true)}
               className="p-2 rounded-lg text-white/30 hover:text-rose-400 hover:bg-white/5 transition-all"
               title="End session"
             >
@@ -179,13 +174,79 @@ export function ChatRoom({ username, peerUsername, topic, onEndSession, onFlagge
         <div className="p-3 bg-amber-500/10 border-b border-amber-500/20 flex-shrink-0">
           <div className="flex items-start gap-2">
             <Shield className="w-3.5 h-3.5 text-amber-400 mt-0.5 flex-shrink-0" />
-            <p className="text-[11px] text-amber-300/80 leading-relaxed">
-              {HELPLINE_TEXT}
-            </p>
+            <p className="text-[11px] text-amber-300/80 leading-relaxed">{HELPLINE_TEXT}</p>
           </div>
         </div>
 
+        {/* Voice/Video call bar */}
+        <div className="px-4 py-2 border-b border-white/10 flex-shrink-0 flex items-center gap-2">
+          {!voiceCallActive && !voiceCallRequested && !voiceCallPeerRequested && (
+            <button onClick={onRequestVoice} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:text-blue-400 hover:border-blue-500/30 text-xs transition-all">
+              <Phone className="w-3.5 h-3.5" /> Voice call
+            </button>
+          )}
+          {voiceCallRequested && !voiceCallActive && (
+            <span className="text-xs text-amber-400/80 flex items-center gap-1.5">
+              <Phone className="w-3.5 h-3.5 animate-pulse" /> Waiting for peer to accept...
+            </span>
+          )}
+          {voiceCallActive && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-emerald-400 flex items-center gap-1.5">
+                <Phone className="w-3.5 h-3.5" /> Voice active
+              </span>
+              <button onClick={onVoiceEnd} className="p-1 rounded-lg bg-rose-500/20 border border-rose-500/30 text-rose-400 hover:bg-rose-500/30 transition-all">
+                <PhoneOff className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+          {voiceIncoming && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-blue-400 animate-pulse flex items-center gap-1.5">
+                <Phone className="w-3.5 h-3.5" /> Incoming voice call...
+              </span>
+              <button onClick={onVoiceAccept} className="px-2 py-0.5 rounded text-xs bg-emerald-500/20 border border-emerald-500/30 text-emerald-400">Accept</button>
+              <button onClick={onVoiceDecline} className="px-2 py-0.5 rounded text-xs bg-rose-500/20 border border-rose-500/30 text-rose-400">Decline</button>
+            </div>
+          )}
+
+          {!videoCallActive && !videoCallRequested && !videoCallPeerRequested && (
+            <button onClick={onRequestVideo} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:text-purple-400 hover:border-purple-500/30 text-xs transition-all">
+              <Video className="w-3.5 h-3.5" /> Video call
+            </button>
+          )}
+          {videoCallRequested && !videoCallActive && (
+            <span className="text-xs text-amber-400/80 flex items-center gap-1.5">
+              <Video className="w-3.5 h-3.5 animate-pulse" /> Waiting for peer...
+            </span>
+          )}
+          {videoCallActive && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-purple-400 flex items-center gap-1.5">
+                <Video className="w-3.5 h-3.5" /> Video active
+              </span>
+              <button onClick={onVideoEnd} className="p-1 rounded-lg bg-rose-500/20 border border-rose-500/30 text-rose-400 hover:bg-rose-500/30 transition-all">
+                <VideoOff className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+          {videoIncoming && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-purple-400 animate-pulse flex items-center gap-1.5">
+                <Video className="w-3.5 h-3.5" /> Incoming video call...
+              </span>
+              <button onClick={onVideoAccept} className="px-2 py-0.5 rounded text-xs bg-emerald-500/20 border border-emerald-500/30 text-emerald-400">Accept</button>
+              <button onClick={onVideoDecline} className="px-2 py-0.5 rounded text-xs bg-rose-500/20 border border-rose-500/30 text-rose-400">Decline</button>
+            </div>
+          )}
+        </div>
+
         <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin">
+          {messages.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-sm text-white/30">You've been matched with {peerUsername}. Say hello!</p>
+            </div>
+          )}
           {messages.map((msg) => (
             <motion.div
               key={msg.id}
@@ -247,14 +308,13 @@ export function ChatRoom({ username, peerUsername, topic, onEndSession, onFlagge
               ref={inputRef}
               type="text"
               value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
+              onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               placeholder="Type a message..."
               maxLength={500}
-              disabled={isSending}
-              className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm placeholder-white/30 focus:outline-none focus:border-blue-500/50 disabled:opacity-50"
+              className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm placeholder-white/30 focus:outline-none focus:border-blue-500/50"
             />
-            <Button size="sm" icon={<Send className="w-4 h-4" />} onClick={handleSend} disabled={!inputText.trim() || isSending}>
+            <Button size="sm" icon={<Send className="w-4 h-4" />} onClick={handleSend} disabled={!inputText.trim()}>
               Send
             </Button>
           </div>
@@ -297,7 +357,7 @@ export function ChatRoom({ username, peerUsername, topic, onEndSession, onFlagge
           <div onClick={(e) => e.stopPropagation()}>
             <GlassCard className="max-w-sm w-full">
               <h3 className="text-lg font-semibold text-white mb-2">End this conversation?</h3>
-              <p className="text-sm text-white/50 mb-4">No explanation needed. You'll return to the start and can take a break or start a new session.</p>
+              <p className="text-sm text-white/50 mb-4">No explanation needed. You'll return to the start. You can always come back and start a new session.</p>
               <div className="flex gap-2">
                 <Button variant="glass" className="flex-1" onClick={() => setShowConfirmEnd(false)}>
                   Stay
@@ -320,32 +380,24 @@ export function ChatRoom({ username, peerUsername, topic, onEndSession, onFlagge
         >
           <div onClick={(e) => e.stopPropagation()}>
             <GlassCard className="max-w-sm w-full">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/30 to-orange-500/30 border border-amber-500/30 flex items-center justify-center">
-                <Flag className="w-5 h-5 text-amber-400" />
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/30 to-orange-500/30 border border-amber-500/30 flex items-center justify-center">
+                  <Flag className="w-5 h-5 text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Report this session?</h3>
+                  <p className="text-sm text-white/50">Reporting flags this conversation for review. Your identity stays anonymous.</p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-lg font-semibold text-white">Report this session?</h3>
-                <p className="text-sm text-white/50">Reporting flags this conversation for review. Your identity stays anonymous.</p>
+              <div className="flex gap-2">
+                <Button variant="glass" className="flex-1" onClick={() => setShowReportDialog(false)}>
+                  Cancel
+                </Button>
+                <Button variant="danger" className="flex-1" onClick={() => { onReport(); setShowReportDialog(false); onEndSession(); }}>
+                  Report & end
+                </Button>
               </div>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="glass" className="flex-1" onClick={() => setShowReportDialog(false)}>
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                className="flex-1"
-                onClick={() => {
-                  onFlagged(["reported_by_user"])
-                  setShowReportDialog(false)
-                  onEndSession()
-                }}
-              >
-                Report & end
-              </Button>
-            </div>
-          </GlassCard>
+            </GlassCard>
           </div>
         </motion.div>
       )}
@@ -353,4 +405,10 @@ export function ChatRoom({ username, peerUsername, topic, onEndSession, onFlagge
       <CrisisPopup open={showCrisisPopup} onClose={() => setShowCrisisPopup(false)} />
     </>
   )
+}
+
+// Exposed for parent to call imperatively
+export type ChatRoomHandle = {
+  addPeerMessage: (text: string, timestamp: number) => void
+  setPeerTyping: (typing: boolean) => void
 }

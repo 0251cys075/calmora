@@ -11,6 +11,8 @@ const dotenv = require("dotenv")
 const helmet = require("helmet")
 const morgan = require("morgan")
 const mongoose = require("mongoose")
+const http = require("http")
+const { Server } = require("socket.io")
 
 // Load environment variables from .env file
 dotenv.config()
@@ -77,11 +79,25 @@ app.use((err, req, res, _next) => {
    DATABASE CONNECTION & PORT LISTENER
    ========================================================================== */
 
-// Connect to MongoDB and start the API server on connection success
+// Create HTTP server and attach Socket.IO for Safe Circle real-time features
+const server = http.createServer(app)
+
+const io = new Server(server, {
+  cors: {
+    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    credentials: true,
+    methods: ["GET", "POST"],
+  },
+})
+
+// Register Safe Circle Socket.IO handlers
+require("./safe-circle")(io)
+
+// Connect to MongoDB and start the server on connection success
 mongoose.connect(process.env.MONGODB_URI || "mongodb://localhost:27017/calmora")
   .then(() => {
     console.log("Connected to MongoDB")
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       console.log(`Calmora API running on port ${PORT}`)
     })
   })
@@ -90,4 +106,4 @@ mongoose.connect(process.env.MONGODB_URI || "mongodb://localhost:27017/calmora")
     process.exit(1) // Terminate process on connection failure
   })
 
-module.exports = app
+module.exports = { app, server, io }

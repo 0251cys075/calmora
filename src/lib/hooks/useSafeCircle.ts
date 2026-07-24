@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react"
 import { useLocalStorage } from "./useLocalStorage"
-import { generateAnonUsername, generatePeerUsername, type Topic, type SafeCircleSession } from "@/lib/safe-circle-utils"
+import { generateAnonUsername, type Topic, type SafeCircleSession } from "@/lib/safe-circle-utils"
 
 interface SessionState {
   status: "idle" | "queuing" | "connected"
@@ -35,7 +35,7 @@ export function useSafeCircle() {
         if (prev.status !== "queuing") return prev
         if (prev.timeoutId) clearTimeout(prev.timeoutId)
 
-        const peerUsername = generatePeerUsername()
+        const peerUsername = generateAnonUsername()
         const session: SafeCircleSession = {
           sessionId: `sc_${Date.now()}`,
           username: anonUsername,

@@ -1,15 +1,16 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Users, Search, Loader2, ArrowLeft } from "lucide-react"
+import { Users, Search, Loader2, ArrowLeft, WifiOff } from "lucide-react"
 import { GlassCard } from "@/components/ui/glass-card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { TOPICS, type Topic } from "@/lib/safe-circle-utils"
 
 interface MatchingQueueProps {
   isQueuing: boolean
+  isConnected: boolean
+  socketError: string | null
   onSelectTopic: (topic: Topic) => void
   onCancel: () => void
 }
@@ -30,7 +31,7 @@ const topicEmojis: Record<Topic, string> = {
   Grief: "🕊️",
 }
 
-function QueuingState({ topic, onCancel }: { topic: Topic; onCancel: () => void }) {
+function QueuingState({ onCancel }: { onCancel: () => void }) {
   return (
     <div className="text-center py-12">
       <div className="relative w-20 h-20 mx-auto mb-6">
@@ -41,8 +42,9 @@ function QueuingState({ topic, onCancel }: { topic: Topic; onCancel: () => void 
       </div>
 
       <h3 className="text-lg font-semibold text-white mb-2">Finding someone to talk to...</h3>
-      <p className="text-sm text-white/50 mb-1">Topic: <span className="text-white/80">{topicEmojis[topic]} {topic}</span></p>
-      <p className="text-xs text-white/30 mb-6">You'll be paired with someone who also wants to talk about {topic.toLowerCase()}.</p>
+      <p className="text-sm text-white/50 max-w-sm mx-auto mb-6">
+        Waiting for a peer who wants to talk about the same topic. You'll be matched automatically.
+      </p>
 
       <div className="flex items-center gap-2 justify-center mb-6">
         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -56,11 +58,36 @@ function QueuingState({ topic, onCancel }: { topic: Topic; onCancel: () => void 
   )
 }
 
-export function MatchingQueue({ isQueuing, onSelectTopic, onCancel }: MatchingQueueProps) {
+export function MatchingQueue({ isQueuing, isConnected, socketError, onSelectTopic, onCancel }: MatchingQueueProps) {
+  if (socketError) {
+    return (
+      <GlassCard>
+        <div className="text-center py-8">
+          <WifiOff className="w-12 h-12 text-rose-400 mx-auto mb-3" />
+          <h3 className="text-lg font-semibold text-white mb-2">Connection unavailable</h3>
+          <p className="text-sm text-white/50 max-w-sm mx-auto">
+            Could not connect to the Safe Circle server. Please check that the backend is running and try again.
+          </p>
+        </div>
+      </GlassCard>
+    )
+  }
+
+  if (!isConnected) {
+    return (
+      <GlassCard>
+        <div className="text-center py-8">
+          <Loader2 className="w-8 h-8 text-blue-400 animate-spin mx-auto mb-3" />
+          <p className="text-sm text-white/50">Connecting to Safe Circle...</p>
+        </div>
+      </GlassCard>
+    )
+  }
+
   if (isQueuing) {
     return (
       <GlassCard>
-        <QueuingState topic={TOPICS[0]} onCancel={onCancel} />
+        <QueuingState onCancel={onCancel} />
       </GlassCard>
     )
   }
@@ -73,8 +100,8 @@ export function MatchingQueue({ isQueuing, onSelectTopic, onCancel }: MatchingQu
         </div>
         <h2 className="text-2xl font-bold text-white mb-2">Safe Circle</h2>
         <p className="text-sm text-white/50 max-w-md mx-auto">
-          Anonymous 1-on-1 peer support. You'll be randomly paired with someone who shares your topic.
-          No names, no profiles — just a safe conversation.
+          Anonymous 1-on-1 peer support. Pick a topic and we'll match you with someone who shares it.
+          No names, no profiles — just a real conversation.
         </p>
       </div>
 
@@ -107,7 +134,7 @@ export function MatchingQueue({ isQueuing, onSelectTopic, onCancel }: MatchingQu
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10">
           <Search className="w-3.5 h-3.5 text-white/30" />
           <span className="text-xs text-white/30">
-            Anonymous · No personal info shared · Leave anytime
+            Anonymous · No personal info · Leave anytime · Report unsafe behavior
           </span>
         </div>
       </div>
