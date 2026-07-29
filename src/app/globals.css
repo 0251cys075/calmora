@@ -1,29 +1,46 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-background: #0a0f1e;
-  --color-foreground: #f0f4ff;
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: #10141a;
+  --color-foreground: #dfe2eb;
+  --font-sans: var(--font-geist-sans), 'Inter', system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), monospace;
+  --font-heading: 'Plus Jakarta Sans', var(--font-geist-sans), sans-serif;
+
+  /* Stitch Luminous Tranquility Palette */
+  --color-surface-lowest: #0a0e14;
+  --color-surface-low: #181c22;
+  --color-surface-container: #1c2026;
+  --color-surface-high: #262a31;
+  --color-surface-highest: #31353c;
+
+  --color-calm-cyan: #00e5ff;
+  --color-calm-cyan-light: #c3f5ff;
+  --color-calm-purple: #a855f7;
+  --color-calm-violet: #6f00be;
+  --color-calm-pink: #ec4899;
+  --color-calm-magenta: #ac0768;
   --color-calm-blue: #3b82f6;
-  --color-calm-cyan: #06b6d4;
   --color-calm-teal: #14b8a6;
   --color-calm-emerald: #10b981;
-  --color-calm-purple: #8b5cf6;
   --color-calm-amber: #f59e0b;
   --color-calm-rose: #f43f5e;
 }
 
 @layer base {
   body {
-    background: #0a0f1e;
-    color: #f0f4ff;
+    background: #10141a;
+    color: #dfe2eb;
     font-family: var(--font-sans), system-ui, sans-serif;
   }
 
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading), system-ui, sans-serif;
+  }
+
   ::selection {
-    background: rgba(59, 130, 246, 0.3);
-    color: #fff;
+    background: rgba(0, 229, 255, 0.25);
+    color: #ffffff;
   }
 
   ::-webkit-scrollbar {
@@ -40,7 +57,7 @@
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(0, 229, 255, 0.3);
   }
 }
 
@@ -48,36 +65,60 @@
   .glass {
     background: rgba(255, 255, 255, 0.05);
     backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border: 1px solid rgba(255, 255, 255, 0.1);
   }
 
   .glass-hover:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(0, 229, 255, 0.3);
+    box-shadow: 0 0 15px rgba(0, 229, 255, 0.15);
   }
 
   .glass-strong {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(28, 32, 38, 0.7);
     backdrop-filter: blur(24px);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .glass-ai {
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.12), rgba(0, 229, 255, 0.08));
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(168, 85, 247, 0.25);
   }
 
   .text-gradient {
-    background: linear-gradient(135deg, #3b82f6, #06b6d4);
+    background: linear-gradient(135deg, #00e5ff, #a855f7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-ai {
+    background: linear-gradient(135deg, #a855f7, #00e5ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-pink {
+    background: linear-gradient(135deg, #ec4899, #a855f7);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
   .text-gradient-emerald {
-    background: linear-gradient(135deg, #10b981, #14b8a6);
+    background: linear-gradient(135deg, #10b981, #00e5ff);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
   .text-gradient-amber {
-    background: linear-gradient(135deg, #f59e0b, #f97316);
+    background: linear-gradient(135deg, #f59e0b, #ec4899);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -88,6 +129,32 @@
       linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
       linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
     background-size: 40px 40px;
+  }
+
+  .btn-stitch-primary {
+    background: #00e5ff;
+    color: #00363d;
+    font-weight: 600;
+    border-radius: 9999px;
+    transition: all 0.2s ease;
+  }
+
+  .btn-stitch-primary:hover {
+    background: #c3f5ff;
+    box-shadow: 0 0 20px rgba(0, 229, 255, 0.4);
+  }
+
+  .btn-stitch-ai {
+    background: linear-gradient(135deg, #a855f7, #00e5ff);
+    color: #ffffff;
+    font-weight: 600;
+    border-radius: 9999px;
+    transition: all 0.2s ease;
+  }
+
+  .btn-stitch-ai:hover {
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.5), 0 0 30px rgba(0, 229, 255, 0.3);
+    transform: translateY(-1px);
   }
 
   .animate-float {
@@ -104,8 +171,8 @@
   }
 
   @keyframes glow {
-    from { box-shadow: 0 0 10px rgba(59, 130, 246, 0.2), 0 0 20px rgba(6, 182, 212, 0.1); }
-    to { box-shadow: 0 0 20px rgba(59, 130, 246, 0.3), 0 0 40px rgba(6, 182, 212, 0.2); }
+    from { box-shadow: 0 0 10px rgba(0, 229, 255, 0.2), 0 0 20px rgba(168, 85, 247, 0.1); }
+    to { box-shadow: 0 0 20px rgba(0, 229, 255, 0.4), 0 0 40px rgba(168, 85, 247, 0.25); }
   }
 
   .animate-gradient-x {
@@ -142,3 +209,4 @@
     100% { transform: scale(1); opacity: 0; }
   }
 }
+

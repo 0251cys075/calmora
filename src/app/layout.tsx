@@ -6,7 +6,7 @@
  */
 
 import type { Metadata } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
+import { Geist, Geist_Mono, Plus_Jakarta_Sans, Inter } from "next/font/google"
 import "./globals.css"
 import { MainLayout } from "@/components/layout/MainLayout"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
@@ -23,6 +23,16 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 })
 
+const plusJakartaSans = Plus_Jakarta_Sans({
+  variable: "--font-jakarta",
+  subsets: ["latin"],
+})
+
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+})
+
 // Global SEO and app identity metadata tags configuration
 export const metadata: Metadata = {
   title: "Calmora - Find Your Calm. Find Your Power.",
@@ -32,8 +42,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
-      <body className="min-h-screen bg-[#0a0f1e] antialiased">
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${plusJakartaSans.variable} ${inter.variable}`} suppressHydrationWarning>
+      <body className="min-h-screen bg-[#10141a] text-[#dfe2eb] antialiased">
         <ErrorBoundary>
           <ToastProvider>
             <AuthProvider>
@@ -45,3 +55,4 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   )
 }
+
