@@ -204,114 +204,114 @@ export default function Home() {
     <>
       <ConfettiCelebration streak={user?.streak ?? 0} habits={habits} />
 
-      <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
-        {/* ── Header row: greeting + badges ── */}
-        <motion.div variants={item} className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-          <MoodGreeting name={user?.name ?? "Friend"} moodEntries={moodEntries} />
-          <div className="flex items-center gap-3 flex-shrink-0 mt-1">
-            <Badge variant="premium" size="md">
-              <Trophy className="w-3.5 h-3.5" />
-              Level {user?.level || 8}
-            </Badge>
-            <Badge variant="success" size="md">
-              <Sparkles className="w-3.5 h-3.5" />
-              {user?.streak || 0} day streak
-            </Badge>
+      <motion.div variants={container} initial="hidden" animate="show" className="space-y-6 max-w-4xl mx-auto">
+        {/* ── Top AppBar with Stitch Styling ── */}
+        <motion.div variants={item} className="flex items-center justify-between p-4 rounded-2xl glass-strong border border-white/10">
+          <div className="flex items-center gap-3">
+            <div className="relative w-11 h-11 rounded-full p-0.5 bg-gradient-to-br from-cyan-400 to-purple-500 shadow-lg shadow-cyan-500/20">
+              <div className="w-full h-full rounded-full bg-[#10141a] flex items-center justify-center overflow-hidden">
+                <Smile className="w-6 h-6 text-cyan-400" />
+              </div>
+            </div>
+            <div>
+              <h1 className="text-xl font-bold font-heading text-[#00e5ff] tracking-tight">Calmora</h1>
+              <p className="text-xs text-white/50">Welcome back, {user?.name || "Alex"}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 flex items-center gap-1.5 shadow-inner">
+              <span className="text-sm font-bold text-cyan-400">{user?.streak || 7} 🔥</span>
+            </div>
           </div>
         </motion.div>
 
-        <StreakNudge habits={habits} streak={user?.streak ?? 0} />
-
+        {/* ── Stitch Daily Inspiration Card ── */}
         <motion.div variants={item}>
-          <NextBestAction
-            journalEntries={journalEntries}
-            moodEntries={moodEntries}
-            habits={habits}
-            streak={user?.streak ?? 0}
-          />
+          <div className="glass-strong rounded-2xl p-6 relative overflow-hidden group border border-white/10 shadow-2xl">
+            <div className="absolute -top-12 -right-12 w-36 h-36 bg-[#00e5ff]/10 blur-3xl rounded-full pointer-events-none" />
+            <div className="absolute -bottom-12 -left-12 w-36 h-36 bg-[#a855f7]/10 blur-3xl rounded-full pointer-events-none" />
+
+            <div className="relative z-10 space-y-2">
+              <span className="text-xs font-semibold text-pink-400 uppercase tracking-widest block">
+                Daily Inspiration
+              </span>
+              <p className="text-2xl font-bold text-white font-heading italic leading-snug">
+                &ldquo;{quote.text || "The only way out is through."}&rdquo;
+              </p>
+              <p className="text-xs text-white/40 font-mono pt-1">— {quote.author || "Robert Frost"}</p>
+            </div>
+          </div>
         </motion.div>
 
-        {/* ── Hero card: Wellness Rings + Daily Quote ── */}
+        {/* ── Stitch Activity Overview (3-Stat Grid) ── */}
         <motion.div variants={item}>
-          <GlassCard className="relative overflow-hidden p-6" glow>
-            {/* Background decoration */}
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/8 via-cyan-500/4 to-transparent pointer-events-none" />
-            <div className="absolute top-0 right-0 w-72 h-72 bg-blue-500/8 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute bottom-0 left-1/3 w-40 h-40 bg-purple-500/8 rounded-full blur-2xl pointer-events-none" />
+          <div className="grid grid-cols-3 gap-3 p-4 rounded-2xl glass-strong border border-white/10">
+            <div className="flex flex-col items-center justify-center p-3 text-center border-r border-white/10">
+              <span className="text-2xl font-extrabold text-[#00e5ff] font-heading">{meditationMinutes || 12}m</span>
+              <span className="text-xs text-white/50 font-medium">Meditated</span>
+            </div>
+            <div className="flex flex-col items-center justify-center p-3 text-center border-r border-white/10">
+              <span className="text-2xl font-extrabold text-[#00e5ff] font-heading">{journalEntries.length || 3}</span>
+              <span className="text-xs text-white/50 font-medium">Entries</span>
+            </div>
+            <div className="flex flex-col items-center justify-center p-3 text-center">
+              <span className="text-2xl font-extrabold text-[#00e5ff] font-heading">2</span>
+              <span className="text-xs text-white/50 font-medium">Challenges</span>
+            </div>
+          </div>
+        </motion.div>
 
-            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center gap-8">
-              {/* Wellness rings */}
-              <WellnessRings
-                moodPct={moodPct}
-                habitsPct={habitsPct}
-                journalPct={journalPct}
-                meditationPct={meditationPct}
-                calmScore={user?.calmScore || 850}
-              />
-
-              {/* Divider */}
-              <div className="hidden lg:block w-px h-32 bg-white/10 flex-shrink-0" />
-
-              {/* Quote section */}
-              <div className="flex-1 space-y-4">
-                <div className="flex items-center gap-2">
-                  <Heart className="w-4 h-4 text-rose-400" />
-                  <span className="text-white/50 text-sm">Daily Inspiration</span>
+        {/* ── Today's Challenge: Mindful Breathing ── */}
+        <motion.div variants={item}>
+          <GlassCard className="relative overflow-hidden p-5 border border-white/10">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                  <Wind className="w-5 h-5 text-white" />
                 </div>
-                <p className="text-lg md:text-xl font-medium text-white/90 leading-relaxed">
-                  &ldquo;{quote.text}&rdquo;
-                </p>
-                <p className="text-white/40 text-sm">— {quote.author}</p>
-
-                {/* Calm score */}
-                <div className="flex items-center gap-3 pt-2">
-                  <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10">
-                    <Brain className="w-4 h-4 text-blue-400" />
-                    <span className="text-sm font-bold text-white">{user?.calmScore || 850}</span>
-                    <span className="text-xs text-white/40">Calm Score</span>
-                  </div>
-                  {moodEntries.length > 0 && (
-                    <div className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium ${
-                      trendDown
-                        ? "bg-rose-500/10 text-rose-300 border border-rose-500/20"
-                        : trendUp
-                          ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
-                          : "bg-white/5 text-white/40 border border-white/10"
-                    }`}>
-                      {trendDown ? <TrendingDown className="w-3 h-3" /> : trendUp ? <TrendingUp className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
-                      {trendDown ? "Mood dipping" : trendUp ? "Trending up" : "Steady"}
-                    </div>
-                  )}
+                <div>
+                  <h3 className="text-sm font-semibold text-white font-heading">Today&apos;s Challenge</h3>
+                  <p className="text-xs text-white/50">Practice Mindful Breathing</p>
                 </div>
               </div>
+              <span className="text-xs font-bold text-[#00e5ff]">{challengeProgress || 40}%</span>
             </div>
+
+            <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden mb-4">
+              <motion.div
+                className="bg-gradient-to-r from-cyan-400 to-purple-500 h-full rounded-full"
+                initial={{ width: 0 }}
+                animate={{ width: `${challengeProgress || 40}%` }}
+                transition={{ duration: 1 }}
+              />
+            </div>
+
+            <Link href="/relax">
+              <Button className="w-full btn-stitch-ai text-sm py-2.5">
+                Start Session
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Link>
           </GlassCard>
         </motion.div>
 
-        {/* ── Mood Check ── */}
+        {/* ── Stitch Quick Access (6 Grid Items) ── */}
         <motion.div variants={item}>
-          <MoodCheck />
-        </motion.div>
-
-        {/* ── Quick Access ── */}
-        <motion.div variants={item}>
-          <h2 className="text-lg font-semibold text-white mb-3">Quick Access</h2>
+          <h2 className="text-sm font-semibold text-white/80 uppercase tracking-wider mb-3 px-1">Quick Access</h2>
           <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
             {quickActions.map((action) => {
               const Icon = action.icon
               return (
                 <Link key={`${action.href}-${action.label}`} href={action.href}>
                   <motion.div
-                    whileHover={{ y: -4, scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                    className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/8 hover:border-white/20 transition-colors cursor-pointer h-full"
+                    whileHover={{ y: -4, scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="flex flex-col items-center gap-2 p-3.5 rounded-2xl glass-strong border border-white/10 hover:border-cyan-400/50 transition-all cursor-pointer text-center group"
                   >
-                    <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center shadow-lg`}>
-                      <Icon className="w-5 h-5 text-white" />
+                    <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center group-hover:scale-110 group-hover:border-cyan-400/40 transition-all shadow-md">
+                      <Icon className="w-5 h-5 text-cyan-400" />
                     </div>
-                    <p className="text-xs font-semibold text-white text-center leading-tight">{action.label}</p>
-                    <p className="text-[10px] text-white/35 text-center leading-tight">{action.desc}</p>
+                    <span className="text-xs font-semibold text-white group-hover:text-cyan-300 transition-colors">{action.label}</span>
                   </motion.div>
                 </Link>
               )
@@ -319,134 +319,40 @@ export default function Home() {
           </div>
         </motion.div>
 
-        {/* ── Weekly Progress + Today's Challenge ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <motion.div variants={item} className="lg:col-span-2">
-            <GlassCard>
-              <div className="flex items-start justify-between mb-6">
-                <div>
-                  <h2 className="text-lg font-semibold text-white">Weekly Mood</h2>
-                  <p className="text-xs text-white/40 mt-0.5">Last 7 days overview</p>
-                </div>
-                <WeeklyInsight moodEntries={moodEntries} />
-              </div>
-              <div className="flex items-end justify-between h-40 gap-2">
-                {weeklyData.map((value, i) => {
-                  const isToday = i === 6
-                  const barColor = value > 70
-                    ? "from-emerald-500/60 to-emerald-400/30"
-                    : value > 40
-                      ? "from-blue-500/60 to-cyan-500/30"
-                      : value > 0
-                        ? "from-amber-500/60 to-orange-400/30"
-                        : "from-white/5 to-white/5"
-
-                  return (
-                    <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                      <div className="relative group w-full flex flex-col justify-end" style={{ height: "100%" }}>
-                        {value > 0 && (
-                          <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs text-white/60 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap bg-black/40 px-1.5 py-0.5 rounded">
-                            {value}%
-                          </div>
-                        )}
-                        <motion.div
-                          initial={{ height: 0 }}
-                          animate={{ height: value > 0 ? `${value}%` : "8px" }}
-                          transition={{ duration: 0.9, delay: i * 0.1, ease: "easeOut" }}
-                          className={`w-full rounded-lg bg-gradient-to-t ${barColor} relative ${isToday && value > 0 ? "ring-1 ring-white/30" : ""}`}
-                          style={{ minHeight: value > 0 ? undefined : "8px" }}
-                        >
-                          {isToday && value > 0 && (
-                            <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-white/80" />
-                          )}
-                        </motion.div>
-                      </div>
-                      <span className={`text-xs ${isToday ? "text-white/80 font-semibold" : "text-white/35"}`}>
-                        {dayLabels[i]}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-              {/* Scale reference */}
-              <div className="flex justify-between mt-3 pt-3 border-t border-white/5">
-                <span className="text-[10px] text-white/20">Low</span>
-                <span className="text-[10px] text-white/20">Mood scale</span>
-                <span className="text-[10px] text-white/20">High</span>
-              </div>
-            </GlassCard>
-          </motion.div>
-
-          <motion.div variants={item}>
-            <GlassCard className="h-full">
-              <div className="flex items-center gap-2 mb-5">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
-                  <Flower2 className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-base font-semibold text-white">Today&apos;s Challenge</h2>
-                  <p className="text-xs text-white/40">Morning Gratitude</p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <p className="text-sm text-white/60 leading-relaxed">
-                  Write 3 things you&apos;re grateful for and set your intention for the day.
-                </p>
-
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-xs text-white/40">
-                    <span>Progress</span>
-                    <span>{challengeProgress}%</span>
-                  </div>
-                  <Progress value={challengeProgress} size="sm" variant="gradient" />
-                </div>
-
-                <Link href="/challenges">
-                  <Button variant="glass" size="sm" className="w-full mt-2">
-                    View Challenge
-                    <ArrowRight className="w-4 h-4" />
-                  </Button>
-                </Link>
-              </div>
-            </GlassCard>
-          </motion.div>
-        </div>
-
-        {/* ── Activity Overview Stats ── */}
+        {/* ── Weekly Mood Trends Chart ── */}
         <motion.div variants={item}>
-          <h2 className="text-lg font-semibold text-white mb-3">Activity Overview</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {statCards.map((stat, idx) => {
-              const Icon = stat.icon
-              return (
-                <motion.div
-                  key={stat.label}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 + idx * 0.08 }}
-                  whileHover={{ y: -3, scale: 1.02 }}
-                  className={`p-4 rounded-2xl bg-gradient-to-br ${stat.gradFrom} ${stat.gradTo} border ${stat.border} backdrop-blur-sm transition-all`}
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className={`w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center`}>
-                      <Icon className={`w-4 h-4 ${stat.color}`} />
+          <GlassCard className="p-5 border border-white/10">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-sm font-bold text-white font-heading">Weekly Mood Trends</h3>
+                <p className="text-xs text-white/40">Last 7 days histogram</p>
+              </div>
+              <WeeklyInsight moodEntries={moodEntries} />
+            </div>
+
+            <div className="flex items-end justify-between h-36 gap-2 pt-4">
+              {weeklyData.map((value, i) => {
+                const isToday = i === 6
+                return (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-2">
+                    <div className="w-full flex flex-col justify-end h-full">
+                      <motion.div
+                        initial={{ height: 0 }}
+                        animate={{ height: value > 0 ? `${value}%` : "15%" }}
+                        transition={{ duration: 0.8, delay: i * 0.08 }}
+                        className={`w-full rounded-t-lg ${
+                          isToday ? "bg-gradient-to-t from-cyan-500 to-purple-500 shadow-lg shadow-cyan-500/30" : "bg-white/10"
+                        }`}
+                      />
                     </div>
-                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
-                      stat.positive ? "bg-emerald-500/15 text-emerald-400" : "bg-rose-500/15 text-rose-400"
-                    }`}>
-                      {stat.positive ? "↑" : "↓"}
+                    <span className={`text-xs font-medium ${isToday ? "text-[#00e5ff] font-bold" : "text-white/40"}`}>
+                      {dayLabels[i]}
                     </span>
                   </div>
-                  <p className="text-2xl font-bold text-white mb-0.5">{stat.value}</p>
-                  <p className="text-xs text-white/40 leading-tight">{stat.label}</p>
-                  <p className={`text-xs mt-1 font-medium ${stat.positive ? "text-emerald-400" : "text-rose-400"}`}>
-                    {stat.change}
-                  </p>
-                </motion.div>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
+          </GlassCard>
         </motion.div>
       </motion.div>
     </>
